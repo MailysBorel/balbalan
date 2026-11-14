@@ -60,8 +60,6 @@ export function Profile({ sports, setSport, sport }) {
       </section>
       <section className="sec"><h2 className="mono">Sport à l’ouverture</h2>
         <div className="chips">{sports.map(([k, n]) => <button key={k} className={'chip ' + (sport === k ? 'on' : '')} onClick={() => setSport(k)}>{n}</button>)}</div></section>
-      <section className="sec"><h2 className="mono">À propos</h2>
-        <div className="panel"><span>Balbalan · bêta</span><span className="mono">Données ESPN (non officielles) · mises à jour toutes les 20 s</span></div></section>
     </>
   );
 }

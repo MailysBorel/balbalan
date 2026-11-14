@@ -2,7 +2,13 @@
 // en gardant le même format de sortie (objet "match" ci-dessous).
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 export const SPORTS = {
-  foot: { path: 'soccer', leagues: ['fra.1', 'eng.1', 'esp.1', 'ita.1', 'ger.1', 'uefa.champions'] },
+  foot: {
+    path: 'soccer',
+    leagues: ['fra.1', 'eng.1', 'esp.1', 'ita.1', 'ger.1', 'uefa.champions',
+      'uefa.nations', 'fifa.friendly', 'fifa.worldq.uefa', 'uefa.euroq', 'fifa.world', 'uefa.euro'],
+    // compétitions avec un classement (les amicaux n'en ont pas)
+    standings: ['fra.1', 'eng.1', 'esp.1', 'ita.1', 'ger.1', 'uefa.champions', 'uefa.nations'],
+  },
   basket: { path: 'basketball', leagues: ['nba'] },
   tennis: { path: 'tennis', leagues: ['atp', 'wta'] },
 };
@@ -42,19 +48,23 @@ function toMatch(ev, comp, sport, league, leagueName) {
 }
 const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '');
 const shift = (s, n) => ymd(new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8) + n)));
-// date = jour local de l'utilisateur (AAAAMMJJ). On prend J-1 → J+1 pour couvrir les décalages horaires ; le tri par jour se fait côté app.
+// date = jour local de l'utilisateur (AAAAMMJJ). On prend J-1, J et J+1 pour couvrir les décalages horaires ; le tri par jour se fait côté app.
+// (ESPN refuse les plages "dates=A-B" : une requête par jour.)
 export async function scoreboard(sport, date) {
   const S = SPORTS[sport]; if (!S) throw new Error('sport inconnu');
-  const q = date ? `?dates=${shift(date, -1)}-${shift(date, 1)}&limit=300` : '';
-  const res = await Promise.allSettled(S.leagues.map(l => get(`${BASE}/${S.path}/${l}/scoreboard${q}`).then(d => ({ l, d }))));
-  const out = [];
+  const qs = date ? [-1, 0, 1].map(n => `?dates=${shift(date, n)}&limit=300`) : [''];
+  const res = await Promise.allSettled(S.leagues.flatMap(l => qs.map(q => get(`${BASE}/${S.path}/${l}/scoreboard${q}`).then(d => ({ l, d })))));
+  const out = [], seen = new Set();
   for (const r of res) {
     if (r.status !== 'fulfilled') continue;
     const { l, d } = r.value;
     const lg = d.leagues?.[0]?.abbreviation || d.leagues?.[0]?.name || l;
     for (const ev of d.events || []) {
       const comps = ev.competitions?.length ? ev.competitions : (ev.groupings || []).flatMap(g => g.competitions || []);
-      for (const c of comps) out.push(toMatch(ev, c, sport, l, sport === 'tennis' ? ev.shortName || ev.name || lg : lg));
+      for (const c of comps) {
+        const k = l + ':' + (c.id || ev.id); if (seen.has(k)) continue; seen.add(k);
+        out.push(toMatch(ev, c, sport, l, sport === 'tennis' ? ev.shortName || ev.name || lg : NAMES[l] || lg));
+      }
     }
   }
   const rank = { live: 0, pre: 1, post: 2 };
@@ -78,7 +88,7 @@ export async function matchDetail(sport, league, id) {
   return { match, stats, events };
 }
 
-export const NAMES = { 'fra.1': 'Ligue 1', 'eng.1': 'Premier League', 'esp.1': 'LaLiga', 'ita.1': 'Serie A', 'ger.1': 'Bundesliga', 'uefa.champions': 'Ligue des champions', nba: 'NBA', atp: 'ATP', wta: 'WTA' };
+export const NAMES = { 'fra.1': 'Ligue 1', 'eng.1': 'Premier League', 'esp.1': 'LaLiga', 'ita.1': 'Serie A', 'ger.1': 'Bundesliga', 'uefa.champions': 'Ligue des champions', 'uefa.nations': 'Ligue des nations', 'fifa.friendly': 'Match amical', 'fifa.worldq.uefa': 'Qualif. Coupe du monde', 'uefa.euroq': 'Qualif. Euro', 'fifa.world': 'Coupe du monde', 'uefa.euro': 'Euro', nba: 'NBA', atp: 'ATP', wta: 'WTA' };
 const stat = (e, n) => e.stats?.find(s => s.name === n || s.type === n);
 export async function standings(sport) {
   const S = SPORTS[sport];
@@ -92,7 +102,7 @@ export async function standings(sport) {
       }),
     })).filter(g => g.rows.length);
   }
-  const res = await Promise.allSettled(S.leagues.map(l => get(`https://site.api.espn.com/apis/v2/sports/${S.path}/${l}/standings`).then(d => ({ l, d }))));
+  const res = await Promise.allSettled((S.standings || S.leagues).map(l => get(`https://site.api.espn.com/apis/v2/sports/${S.path}/${l}/standings`).then(d => ({ l, d }))));
   const groups = [];
   for (const r of res) {
     if (r.status !== 'fulfilled') continue;
@@ -107,7 +117,7 @@ export async function standings(sport) {
           : { ...base, k: v('rank')?.value ?? 1000 - (v('points')?.value ?? 0), cols: [v('gamesPlayed')?.displayValue, v('pointDifferential')?.displayValue, v('points')?.displayValue] };
       });
       rows.sort((a, b) => a.k - b.k); rows = rows.map(({ k, ...x }, i) => ({ ...x, rank: i + 1 }));
-      const name = sport === 'basket' ? (c.name || c.abbreviation || 'NBA').replace(' Conference', '') : NAMES[l] + (kids.length > 1 ? ' · ' + (c.abbreviation || c.name) : '');
+      const name = sport === 'basket' ? (c.name || c.abbreviation || 'NBA').replace(' Conference', '') : NAMES[l] + (kids.length > 1 ? ' · ' + (c.abbreviation || c.name).replace(/^Group /, 'Groupe ') : '');
       groups.push({ name, cols: sport === 'basket' ? ['V', 'D', '%'] : ['J', '+/-', 'Pts'], rows });
     }
   }
