@@ -1,5 +1,6 @@
 // Adaptateur ESPN (non officiel). Pour changer de fournisseur, réécris seulement ce fichier
 // en gardant le même format de sortie (objet "match" ci-dessous).
+import { toEnglish, toFrench, norm } from './countries';
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 export const SPORTS = {
   foot: {
@@ -132,4 +133,31 @@ export async function standings(sport) {
     }
   }
   return groups;
+}
+
+// Recherche d'équipes et de joueurs (foot, basket, tennis), celles des compétitions suivies en premier.
+const FROM = { soccer: 'foot', basketball: 'basket', tennis: 'tennis' };
+export async function search(q) {
+  // « maroc » → on cherche aussi « Morocco » (ESPN est en anglais) ; les traductions passent en premier.
+  const tr = toEnglish(q), queries = [...tr, ...(tr.some(e => norm(e) === norm(q)) ? [] : [q])];
+  const res = await Promise.allSettled(queries.map(x => get(`https://site.web.api.espn.com/apis/search/v2?query=${encodeURIComponent(x)}&limit=15`)));
+  if (!res.some(r => r.status === 'fulfilled')) throw new Error('recherche indisponible');
+  const known = new Set(Object.values(SPORTS).flatMap(x => x.leagues));
+  const out = [];
+  for (const r of res.flatMap(x => x.status === 'fulfilled' ? x.value.results || [] : [])) {
+    if (r.type !== 'team' && r.type !== 'player') continue;
+    for (const c of r.contents || []) {
+      const sport = FROM[c.sport]; if (!sport || !c.displayName) continue;
+      if (sport === 'basket' && c.defaultLeagueSlug !== 'nba') continue; // pas de NCAA
+      const league = c.defaultLeagueSlug;
+      out.push({
+        type: r.type, sport, name: c.displayName, label: toFrench(c.displayName) || c.displayName,
+        sub: [...new Set([c.subtitle, NAMES[league] || c.description])].filter(x => x && !/soccer team/i.test(x)).join(' · '),
+        logo: c.image?.default || null, k: tr.includes(c.displayName) ? -1 : known.has(league) ? 0 : 1,
+      });
+    }
+  }
+  const seen = new Set();
+  return out.sort((a, b) => a.k - b.k).filter(x => !seen.has(x.sport + x.name) && seen.add(x.sport + x.name))
+    .slice(0, 12).map(({ k, ...x }) => x);
 }

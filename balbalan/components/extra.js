@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { MatchCard } from './ui';
+import { norm, toFrench } from '../lib/countries';
 
 // Matchs regroupés par compétition, chaque groupe se plie/déplie (mémorisé sur l'appareil).
 export function CompGroups({ list, sport }) {
@@ -74,7 +75,7 @@ export function Standings({ sport }) {
         <div className="tr th"><span>#</span><span>{sport === 'tennis' ? 'Joueur' : 'Équipe'}</span>{cur.cols.map(c => <b key={c}>{c}</b>)}</div>
         {cur.rows.map(r => (
           <div className="tr" key={r.rank + r.name}><span>{r.rank}</span>
-            <span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{r.name}</span>
+            <span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{toFrench(r.name) || r.name}</span>
             {r.cols.map((c, k) => <b key={k}>{c ?? '–'}</b>)}</div>))}
       </div>
     </>
@@ -95,5 +96,52 @@ export function Profile({ sports, setSport, sport }) {
       <section className="sec"><h2 className="mono">Sport à l’ouverture</h2>
         <div className="chips">{sports.map(([k, n]) => <button key={k} className={'chip ' + (sport === k ? 'on' : '')} onClick={() => setSport(k)}>{n}</button>)}</div></section>
     </>
+  );
+}
+
+// Écran de recherche : matchs du jour (filtre local) + équipes/joueurs ESPN qu'on peut suivre.
+export function Search({ matches, onClose }) {
+  const [q, setQ] = useState('');
+  const [res, setRes] = useState(null); // null = en cours
+  const [err, setErr] = useState(false);
+  const { has, toggle } = useFavs();
+  useEffect(() => {
+    const k = e => e.key === 'Escape' && onClose();
+    addEventListener('keydown', k); return () => removeEventListener('keydown', k);
+  }, [onClose]);
+  useEffect(() => {
+    setRes(null); setErr(false);
+    if (q.trim().length < 2) return;
+    let on = true;
+    const t = setTimeout(() => fetch('/api/search?q=' + encodeURIComponent(q.trim())).then(r => r.json())
+      .then(d => { if (on) { setRes(d.results || []); setErr(!!d.error); } })
+      .catch(() => { if (on) { setRes([]); setErr(true); } }), 300);
+    return () => { on = false; clearTimeout(t); };
+  }, [q]);
+  const n = norm(q.trim());
+  const hit = t => [t.name, t.short, toFrench(t.name)].some(x => norm(x).includes(n)); // « maroc » trouve Morocco
+  const found = n.length >= 2 ? (matches || []).filter(m => hit(m.home) || hit(m.away) || norm(m.leagueName).includes(n)) : [];
+  return (
+    <div className="search" role="dialog" aria-modal="true" aria-label="Recherche">
+      <div className="sbar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+        <input autoFocus type="search" enterKeyHint="search" placeholder="Équipe, joueur, compétition…" value={q} onChange={e => setQ(e.target.value)} aria-label="Rechercher" />
+        <button className="cancel" onClick={onClose}>Annuler</button>
+      </div>
+      {n.length < 2 ? <div className="empty">Tape au moins 2 lettres. Ex. : PSG, Sinner, Lakers…</div> : <>
+        {found.length > 0 && <section className="sec"><h2 className="mono">Matchs du jour · {found.length}</h2>{found.map(m => <MatchCard key={m.id} m={m} />)}</section>}
+        <section className="sec"><h2 className="mono">Équipes & joueurs</h2>
+          {res === null ? <><div className="skel" /><div className="skel" /></>
+            : err ? <div className="empty">Recherche indisponible pour le moment.</div>
+            : !res.length ? <div className="empty">Aucun résultat pour « {q.trim()} ».</div>
+            : res.map(r => (
+              <div className="card" key={r.sport + r.name}><span className="stripe" style={{ background: `var(--c-${r.sport})` }} />
+                <span className="mid"><span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{r.label || r.name}</span>
+                  {r.sub && <span className="mono">{r.sub}</span>}</span>
+                <button className={'fav ' + (has(r.sport, r.name) ? 'on' : '')} onClick={() => toggle(r.sport, r)}>{has(r.sport, r.name) ? '★ Suivi' : '☆ Suivre'}</button>
+              </div>))}
+        </section>
+      </>}
+    </div>
   );
 }
