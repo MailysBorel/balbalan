@@ -20,14 +20,14 @@ const Sets = ({ m, me, op }) => me.lines.map((v, i) => {
 });
 const Team = ({ t }) => <span className={'team' + (t.tbd ? ' tbd' : '')}>{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.logo2 && <img src={t.logo2} alt="" loading="lazy" />}{t.short}</span>;
 
-export function MatchCard({ m }) {
+export function MatchCard({ m, label }) {
   const pre = m.state === 'pre', l = lead(m);
   const tennis = m.sport === 'tennis' && m.home.lines.length > 0;
   const [a, b] = tennis ? [<Sets m={m} me={m.home} op={m.away} />, <Sets m={m} me={m.away} op={m.home} />] : [m.home.score, m.away.score];
   return (
     <Link href={`/match/${m.sport}/${m.league}/${m.id}?d=${localYmd(m.start)}`} className={'card ' + m.state}>
       <span className="stripe" />
-      <div className="mid"><span className="mono">{m.leagueName}</span><Team t={m.home} /><Team t={m.away} /></div>
+      <div className="mid">{(label ?? m.leagueName) && <span className="mono">{label ?? m.leagueName}</span>}<Team t={m.home} /><Team t={m.away} /></div>
       <div className="end"><span className="st">{statusText(m)}</span>
         <span className={'sc ' + (tennis ? 'sets' : l === 0 ? 'w' : '')}>{pre ? '–' : a || '0'}</span>
         <span className={'sc ' + (tennis ? 'sets' : l === 1 ? 'w' : '')}>{pre ? '–' : b || '0'}</span></div>

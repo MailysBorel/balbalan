@@ -32,10 +32,15 @@ export default function Match() {
         : !m ? <div className="skel big" />
         : <>
           <div className="board">
-            {m.state === 'live' ? <span className="badge">LIVE · {m.status}</span> : <span className="mono">{statusText(m)}</span>}
+            {m.state === 'live' ? <span className="badge">LIVE · {m.status}</span>
+              : <span className="mono">{m.state === 'pre' ? [new Date(m.start).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }), m.round].filter(Boolean).join(' · ') : statusText(m)}</span>}
             <div className="score">{m.state === 'pre' ? fmtTime(m.start) : `${m.home.score ?? 0}—${m.away.score ?? 0}`}</div>
-            <div className="teams"><span>{m.home.name}</span><span>{m.away.name}</span></div>
-            <div className="teams">{[m.home, m.away].map((t, i) => t.tbd ? <span key={i} /> : <button key={i} className={'fav ' + (has(sport, t.name) ? 'on' : '')} onClick={() => toggle(sport, t)}>{has(sport, t.name) ? '★ Suivi' : '☆ Suivre'}</button>)}</div>
+            <div className="sides">{[m.home, m.away].map((t, i) => (
+              <div className="side" key={i}>
+                <Avatar t={t} sport={sport} />
+                <span className="nm">{t.name}</span>
+                {!t.tbd && <button className={'fav ' + (has(sport, t.name) ? 'on' : '')} onClick={() => toggle(sport, t)}>{has(sport, t.name) ? '★ Suivi' : '☆ Suivre'}</button>}
+              </div>))}</div>
             {lines && <span className="mono">{lines}</span>}
           </div>
           <div className="seg">{[['stats', 'Stats'], ['resume', 'Temps forts'], ...(sport === 'foot' ? [['compos', 'Compos']] : [])].map(([k, n]) =>
@@ -73,4 +78,18 @@ function Lineups({ l, side, setSide, pre }) {
         <div className="sub" key={p.n + p.name}><span className="num">{p.n}</span><span className="sn">{p.name}</span>
           <span className="pm">{p.marks}{p.in && <b className="in" title="Entré en jeu">↑</b>}</span></div>))}</div></section>}
   </>);
+}
+
+// Photo du joueur (tennis) avec son drapeau en pastille ; sinon drapeau(x) ou logo de l'équipe ; sinon initiales.
+function Avatar({ t, sport }) {
+  const [bad, setBad] = useState(false);
+  useEffect(() => setBad(false), [t.photo]);
+  const initials = (t.name || '?').split(/[\s/]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  if (t.photo && !bad) return (
+    <span className="av photo"><img src={t.photo} alt="" onError={() => setBad(true)} />
+      {t.logo && <img className="flag-badge" src={t.logo} alt="" />}</span>);
+  if (t.logo) return (
+    <span className={'av ' + (sport === 'tennis' ? 'flag' : 'logo')}>
+      <img src={t.logo} alt="" />{t.logo2 && <img src={t.logo2} alt="" />}</span>);
+  return <span className="av initials">{t.tbd ? '?' : initials}</span>;
 }

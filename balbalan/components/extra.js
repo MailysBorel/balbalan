@@ -4,6 +4,36 @@ import { MatchCard } from './ui';
 import { norm, toFrench } from '../lib/countries';
 
 // Matchs regroupés par compétition, chaque groupe se plie/déplie (mémorisé sur l'appareil).
+// Tennis : circuit (ATP, WTA…) › tournoi › simple / double.
+const isLive = list => list.some(m => m.state === 'live');
+function groupBy(list, key, order = () => 0) {
+  const gs = [];
+  for (const m of list) {
+    const name = key(m) || '';
+    let g = gs.find(x => x.name === name);
+    if (!g) gs.push(g = { name, order: order(m), list: [] });
+    g.list.push(m);
+  }
+  return gs.sort((a, b) => isLive(b.list) - isLive(a.list) || a.order - b.order || a.name.localeCompare(b.name));
+}
+const CIRCUITS = ['ATP', 'WTA', 'Challenger', 'ATP 125', 'WTA 125'];
+const DRAWS = ['Simple', 'Double', 'Double mixte'];
+
+function Group({ k, name, items, level, closed, toggle, children }) {
+  const open = !closed.includes(k), id = 'cg-' + k.replace(/\W/g, '-');
+  return (
+    <section className={'sec' + (level === 2 ? ' sub-group' : '')}>
+      <button className={'comp' + (level === 1 ? ' top' : '')} aria-expanded={open} aria-controls={id} onClick={() => toggle(k)}>
+        <span className="name">{name}</span>
+        {isLive(items) && <span className="dot" aria-label="en direct" />}
+        <span className="mono">{items.length}</span>
+        <svg className="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      {open && <div className="sec" id={id}>{children}</div>}
+    </section>
+  );
+}
+
 export function CompGroups({ list, sport }) {
   const [closed, setClosed] = useState([]);
   useEffect(() => { try { setClosed(JSON.parse(localStorage.getItem('closed') || '[]')); } catch {} }, []);
@@ -12,28 +42,25 @@ export function CompGroups({ list, sport }) {
     try { localStorage.setItem('closed', JSON.stringify(n)); } catch {}
     return n;
   });
-  const groups = [];
-  for (const m of list) {
-    let g = groups.find(x => x.name === m.leagueName);
-    if (!g) groups.push(g = { name: m.leagueName, order: m.order ?? 99, list: [] });
-    g.list.push(m);
+  const st = { closed, toggle };
+
+  if (sport === 'tennis') {
+    return groupBy(list, m => m.circuit || m.league.toUpperCase(), m => { const i = CIRCUITS.indexOf(m.circuit); return i < 0 ? 99 : i; }).map(c => (
+      <Group key={c.name} k={'tennis:c:' + c.name} name={c.name} items={c.list} level={1} {...st}>
+        {groupBy(c.list, m => m.tournament || m.leagueName).map(t => (
+          <Group key={t.name} k={'tennis:t:' + t.name} name={t.name} items={t.list} level={2} {...st}>
+            {groupBy(t.list, m => m.draw || 'Simple', m => DRAWS.indexOf(m.draw)).map(d => (
+              <div className="sec" key={d.name}>
+                <h3 className="mono draw">{d.name} · {d.list.length}</h3>
+                {d.list.map(m => <MatchCard key={m.id} m={m} label={m.round || ''} />)}
+              </div>))}
+          </Group>))}
+      </Group>));
   }
-  const live = g => g.list.some(m => m.state === 'live');
-  groups.sort((a, b) => live(b) - live(a) || a.order - b.order || a.name.localeCompare(b.name));
-  return groups.map(g => {
-    const k = sport + ':' + g.name, open = !closed.includes(k), id = 'cg-' + k.replace(/\W/g, '-');
-    return (
-      <section className="sec" key={k}>
-        <button className="comp" aria-expanded={open} aria-controls={id} onClick={() => toggle(k)}>
-          <span className="name">{g.name}</span>
-          {live(g) && <span className="dot" aria-label="en direct" />}
-          <span className="mono">{g.list.length}</span>
-          <svg className="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-        </button>
-        {open && <div className="sec" id={id}>{g.list.map(m => <MatchCard key={m.id} m={m} />)}</div>}
-      </section>
-    );
-  });
+  return groupBy(list, m => m.leagueName, m => m.order ?? 99).map(g => (
+    <Group key={g.name} k={sport + ':' + g.name} name={g.name} items={g.list} level={1} {...st}>
+      {g.list.map(m => <MatchCard key={m.id} m={m} />)}
+    </Group>));
 }
 
 export function useFavs() {

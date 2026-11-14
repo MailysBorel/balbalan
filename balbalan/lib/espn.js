@@ -46,6 +46,7 @@ function side(c) {
     short: t.shortDisplayName || t.shortName || t.displayName || t.abbreviation || '?',
     score: c.score ?? null,
     logo: t.logo || t.logos?.[0]?.href || t.flag?.href || null,
+    photo: c.athlete && /^\d+$/.test(c.id || '') ? `https://a.espncdn.com/combiner/i?img=/i/headshots/tennis/players/full/${c.id}.png&w=192&h=140` : null,
     lines: (c.linescores || []).map(l => l.value ?? l.displayValue),
   };
 }
@@ -66,6 +67,15 @@ function toMatch(ev, comp, sport, league, leagueName) {
   }
   return m;
 }
+// Tennis. ESPN ne connaît que les circuits ATP et WTA ; les tournois « 125 » / « Challenger » sont repérés à leur nom.
+const circuit = (l, name) => /challenger/i.test(name) ? 'Challenger' : /\b125\b/.test(name) ? l.toUpperCase() + ' 125' : l.toUpperCase();
+const draw = s => (/mixed/i.test(s) ? 'Double mixte' : /doubles/i.test(s) ? 'Double' : 'Simple');
+const ROUNDS = { 'Round 1': '1er tour', 'Round 2': '2e tour', 'Round 3': '3e tour', 'Round 4': '4e tour', 'Round of 128': '1/64 de finale',
+  'Round of 64': '1/32 de finale', 'Round of 32': '1/16 de finale', 'Round of 16': '1/8 de finale', Quarterfinal: 'Quart de finale',
+  Quarterfinals: 'Quart de finale', Semifinal: 'Demi-finale', Semifinals: 'Demi-finale', Final: 'Finale', 'Group Stage': 'Phase de groupes',
+  'Qualifying 1st Round': 'Qualifs · 1er tour', 'Qualifying 2nd Round': 'Qualifs · 2e tour', 'Qualifying 3rd Round': 'Qualifs · 3e tour',
+  'Qualifying Final': 'Qualifs · dernier tour' };
+const round = r => (r ? ROUNDS[r] || r.replace(/^Qualifying /, 'Qualifs · ') : '');
 const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '');
 const shift = (s, n) => ymd(new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8) + n)));
 // date = jour local de l'utilisateur (AAAAMMJJ). On prend J-1, J et J+1 pour couvrir les décalages horaires ; le tri par jour se fait côté app.
@@ -82,11 +92,13 @@ export async function scoreboard(sport, date) {
     for (const ev of d.events || []) {
       // tennis : les matchs sont rangés par tableau (simple messieurs, double dames…)
       const comps = ev.competitions?.length ? ev.competitions
-        : (ev.groupings || []).flatMap(g => (g.competitions || []).map(c => ({ ...c, _double: /doubles/i.test(g.grouping?.slug || g.grouping?.displayName || '') })));
+        : (ev.groupings || []).flatMap(g => (g.competitions || []).map(c => ({ ...c, _draw: g.grouping?.slug || g.grouping?.displayName || '' })));
       for (const c of comps) {
         const k = l + ':' + (c.id || ev.id); if (seen.has(k)) continue; seen.add(k);
-        const m = toMatch(ev, c, sport, l, sport === 'tennis' ? (ev.shortName || ev.name || lg) + (c._double ? ' · Double' : '') : NAMES[l] || lg);
+        const tour = ev.shortName || ev.name || lg;
+        const m = toMatch(ev, c, sport, l, sport === 'tennis' ? tour + (/doubles/i.test(c._draw) ? ' · Double' : '') : NAMES[l] || lg);
         m.order = S.leagues.indexOf(l); // ordre d'affichage des compétitions
+        if (sport === 'tennis') Object.assign(m, { circuit: circuit(l, tour), tournament: tour, draw: draw(c._draw), round: round(c.round?.displayName) });
         out.push(m);
       }
     }
