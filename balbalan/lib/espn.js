@@ -148,7 +148,7 @@ export async function standings(sport) {
       name: NAMES[l], cols: ['Pts'],
       rows: (d.rankings?.[0]?.ranks || []).slice(0, 100).map((r, i) => {
         const a = r.athlete || {}, f = a.flag;
-        return { rank: r.current ?? i + 1, name: a.displayName || a.name || '?', logo: typeof f === 'string' ? f : f?.href || null, cols: [r.points ?? '–'] };
+        return { id: a.id || null, league: l, rank: r.current ?? i + 1, name: a.displayName || a.name || '?', logo: typeof f === 'string' ? f : f?.href || null, cols: [r.points ?? '–'] };
       }),
     })).filter(g => g.rows.length);
   }
@@ -161,7 +161,7 @@ export async function standings(sport) {
       const es = c.standings?.entries || []; if (!es.length) continue;
       let rows = es.map(e => {
         const t = e.team || {}, v = n => stat(e, n);
-        const base = { name: t.shortDisplayName || t.displayName || '?', logo: t.logos?.[0]?.href || t.logo || null };
+        const base = { id: t.id || null, league: l, name: t.shortDisplayName || t.displayName || '?', logo: t.logos?.[0]?.href || t.logo || null };
         return sport === 'basket'
           ? { ...base, k: -(v('winPercent')?.value ?? 0), cols: [v('wins')?.displayValue, v('losses')?.displayValue, v('winPercent')?.displayValue] }
           : { ...base, k: v('rank')?.value ?? 1000 - (v('points')?.value ?? 0), cols: [v('gamesPlayed')?.displayValue, v('pointDifferential')?.displayValue, v('points')?.displayValue] };
@@ -199,4 +199,120 @@ export async function search(q) {
   const seen = new Set();
   return out.sort((a, b) => a.k - b.k).filter(x => !seen.has(x.sport + x.name) && seen.add(x.sport + x.name))
     .slice(0, 12).map(({ k, ...x }) => x);
+}
+
+// Page équipe : derniers résultats + prochains matchs. ESPN donne le calendrier compétition par compétition,
+// on interroge donc le championnat + la Ligue des champions (club) ou toutes les compétitions de sélections.
+const DOMESTIC = ['fra.1', 'eng.1', 'esp.1', 'ita.1', 'ger.1'];
+export async function teamSchedule(sport, league, id) {
+  const S = SPORTS[sport];
+  const leagues = sport !== 'foot' ? [league]
+    : DOMESTIC.includes(league) || league === 'uefa.champions' ? [...new Set([league, 'uefa.champions'])]
+    : S.leagues.filter(l => !DOMESTIC.includes(l) && l !== 'uefa.champions');
+  const urls = leagues.flatMap(l => {
+    const u = `${BASE}/${S.path}/${l}/teams/${id}/schedule`;
+    return sport === 'foot' ? [[l, u], [l, u + '?fixture=true']] : [[l, u]]; // foot : les matchs à venir sont à part
+  });
+  const res = await Promise.allSettled(urls.map(([l, u]) => get(u).then(d => ({ l, d }))));
+  let team = null; const seen = new Set(), past = [], next = [];
+  for (const r of res) {
+    if (r.status !== 'fulfilled') continue;
+    const { l, d } = r.value;
+    if (!team && d.team) team = { name: d.team.displayName, logo: d.team.logo || d.team.logos?.[0]?.href || null, record: d.team.recordSummary || '', recordLeague: NAMES[l] || l };
+    for (const ev of d.events || []) {
+      const c = ev.competitions?.[0]; if (!c || seen.has(ev.id)) continue; seen.add(ev.id);
+      const cs = c.competitors || [];
+      const me = cs.find(x => String(x.team?.id ?? x.id) === String(id)), op = cs.find(x => x !== me);
+      if (!me || !op) continue;
+      const st = state(c.status?.type?.state), sc = x => x.score?.displayValue ?? x.score?.value ?? x.score ?? null;
+      const a = Number(sc(me)), b = Number(sc(op));
+      const row = {
+        id: String(ev.id), league: l, leagueName: NAMES[l] || ev.league?.abbreviation || l, date: ev.date, state: st,
+        home: me.homeAway === 'home',
+        opp: { name: toFrench(op.team?.displayName) || op.team?.shortDisplayName || op.team?.displayName || '?', logo: op.team?.logos?.[0]?.href || op.team?.logo || null },
+        score: st === 'post' && sc(me) != null ? [sc(me), sc(op)] : null,
+        result: st !== 'post' ? null : me.winner ? 'V' : op.winner ? 'D' : a > b ? 'V' : a < b ? 'D' : 'N',
+      };
+      (st === 'pre' ? next : st === 'post' ? past : next).push(row);
+    }
+  }
+  if (!team) throw new Error('équipe introuvable');
+  team.name = toFrench(team.name) || team.name;
+  past.sort((x, y) => new Date(y.date) - new Date(x.date));
+  next.sort((x, y) => new Date(x.date) - new Date(y.date));
+  return { team, past: past.slice(0, 15), next: next.slice(0, 5) };
+}
+
+// Page joueur (tennis). ESPN donne la liste des matchs de la saison (sans les scores) ; les scores, drapeaux et noms
+// de tournois viennent du tableau complet de chaque tournoi récent (une requête par tournoi).
+const CORE = 'https://sports.core.api.espn.com/v2/sports/tennis/leagues';
+const https = u => u.replace(/^http:/, 'https:');
+export async function playerSchedule(league, id) {
+  const [log, info, ranks] = await Promise.all([
+    get(`${CORE}/${league}/athletes/${id}/eventlog?limit=60`),
+    get(`https://site.web.api.espn.com/apis/common/v3/sports/tennis/${league}/athletes/${id}`).catch(() => null),
+    get(`${BASE}/tennis/${league}/rankings`).catch(() => null),
+  ]);
+  // les matchs sont rangés par tournoi, du plus récent au plus ancien : les ~30 premiers suffisent
+  const items = (log.events?.items || []).slice(0, 30);
+  const comps = (await Promise.allSettled(items.map(it => get(https(it.competition.$ref)).then(c => ({ c, it })))))
+    .filter(r => r.status === 'fulfilled').map(r => r.value);
+  const rows = [];
+  for (const { c, it } of comps) {
+    const meId = (it.competitor?.$ref || '').match(/competitors\/([^?/]+)/)?.[1];
+    const cs = c.competitors || [], me = cs.find(x => String(x.id) === meId) || cs.find(x => String(x.id).split('-').includes(String(id)));
+    const op = cs.find(x => x !== me);
+    if (!me || !op || op.id === '0' || /^bye$/i.test(op.name || '')) continue; // exempté
+    const eventId = (it.event?.$ref || '').match(/events\/([^?/]+)/)?.[1];
+    const st = it.played ? 'post' : 'pre';
+    rows.push({
+      id: String(c.id), eventId, league, date: c.date, state: st, double: c.type?.type === 'doubles',
+      round: round(c.round?.description), opp: { name: op.name || '?', logo: null },
+      result: st === 'post' ? (me.winner ? 'V' : op.winner ? 'D' : null) : null, meId: String(me.id), opId: String(op.id),
+    });
+  }
+  // tableaux des 6 tournois les plus récents → état réel, scores, drapeaux, nom du tournoi
+  rows.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const events = new Map();
+  for (const r of rows) if (!events.has(r.eventId)) events.set(r.eventId, r.date); // date du dernier match du tournoi
+  const boards = await Promise.allSettled([...events].slice(0, 6).map(([eid, date]) =>
+    get(`${BASE}/tennis/${league}/scoreboard?dates=${ymd(new Date(date))}`).then(d => ({ eid, d }))));
+  const found = new Map();
+  for (const b of boards) {
+    if (b.status !== 'fulfilled') continue;
+    const ev = (b.value.d.events || []).find(e => e.id === b.value.eid); if (!ev) continue;
+    for (const g of ev.groupings || []) for (const c of g.competitions || []) found.set(String(c.id), { ev, c });
+  }
+  for (const r of rows) {
+    const f = found.get(r.id);
+    if (!f) { r.leagueName = r.double ? 'Double' : ''; continue; }
+    const tour = f.ev.shortName || f.ev.name || '';
+    r.leagueName = tour + (r.double ? ' · Double' : '');
+    // l'état du tableau fait foi (ESPN marque parfois « joué » un match du jour pas encore commencé)
+    r.state = state(f.c.status?.type?.state);
+    const me = f.c.competitors.find(x => String(x.id) === r.meId), op = f.c.competitors.find(x => String(x.id) === r.opId);
+    if (op) { const o = side(op); r.opp = { name: o.name, logo: o.logo, logo2: o.logo2 }; }
+    if (r.state !== 'post') { r.result = null; continue; }
+    if (me && op) {
+      r.result = me.winner ? 'V' : op.winner ? 'D' : r.result;
+      const a = side(me).lines, b = side(op).lines, detail = f.c.status?.type?.detail || '';
+      if (/walkover/i.test(detail)) r.score = 'w.o.';
+      else if (a.length) r.score = a.map((v, i) => `${v}-${b[i] ?? ''}`).join(' ') + (/retire/i.test(detail) ? ' ab.' : '');
+    }
+  }
+  const past = rows.filter(r => r.state === 'post' && r.result).slice(0, 15);
+  const next = rows.filter(r => r.state !== 'post').reverse().slice(0, 5); // en cours / à venir, du plus proche au plus lointain
+  const a = info?.athlete || {};
+  const rk = (ranks?.rankings?.[0]?.ranks || []).find(x => String(x.athlete?.id) === String(id));
+  const fl = rk?.athlete?.flag;
+  const name = a.displayName || rk?.athlete?.displayName || '?';
+  const clean = r => { const { eventId, meId, opId, double, ...x } = r; return x; };
+  return {
+    team: {
+      name, logo: (typeof fl === 'string' ? fl : fl?.href) || null,
+      photo: `https://a.espncdn.com/combiner/i?img=/i/headshots/tennis/players/full/${id}.png&w=192&h=140`,
+      details: [rk && `${rk.current}e mondial · ${rk.points} pts`, a.age && `${a.age} ans`, a.hand?.abbreviation && (a.hand.abbreviation === 'L' ? 'gaucher' : 'droitier')].filter(Boolean).join(' · '),
+    },
+    past: past.map(clean), next: next.map(clean),
+  };
 }

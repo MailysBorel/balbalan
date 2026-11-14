@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { MatchCard } from './ui';
 import { norm, toFrench } from '../lib/countries';
 
@@ -84,6 +85,9 @@ export function DateStrip({ off, set }) {
   );
 }
 
+const cells = r => (<><span>{r.rank}</span>
+  <span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{toFrench(r.name) || r.name}</span>
+  {r.cols.map((c, k) => <b key={k}>{c ?? '–'}</b>)}</>);
 export function Standings({ sport }) {
   const [g, setG] = useState(null);
   const [i, setI] = useState(0);
@@ -101,9 +105,8 @@ export function Standings({ sport }) {
       <div className="panel table" style={{ "--n": cur.cols.length }}>
         <div className="tr th"><span>#</span><span>{sport === 'tennis' ? 'Joueur' : 'Équipe'}</span>{cur.cols.map(c => <b key={c}>{c}</b>)}</div>
         {cur.rows.map(r => (
-          <div className="tr" key={r.rank + r.name}><span>{r.rank}</span>
-            <span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{toFrench(r.name) || r.name}</span>
-            {r.cols.map((c, k) => <b key={k}>{c ?? '–'}</b>)}</div>))}
+          (r.id ? <Link className="tr link" href={`/team/${sport}/${r.league}/${r.id}`} key={r.rank + r.name}>{cells(r)}</Link>
+            : <div className="tr" key={r.rank + r.name}>{cells(r)}</div>)))}
       </div>
     </>
   );
