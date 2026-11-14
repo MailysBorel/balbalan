@@ -9,6 +9,7 @@ export default function Match() {
   const { sport, league, id } = useParams();
   const [d, setD] = useState(null);
   const [tab, setTab] = useState('stats');
+  const [side, setSide] = useState(0); // équipe affichée dans « Compos »
   const { has, toggle } = useFavs();
   useEffect(() => {
     let on = true;
@@ -34,20 +35,42 @@ export default function Match() {
             {m.state === 'live' ? <span className="badge">LIVE · {m.status}</span> : <span className="mono">{statusText(m)}</span>}
             <div className="score">{m.state === 'pre' ? fmtTime(m.start) : `${m.home.score ?? 0}—${m.away.score ?? 0}`}</div>
             <div className="teams"><span>{m.home.name}</span><span>{m.away.name}</span></div>
-            <div className="teams">{[m.home, m.away].map((t, i) => <button key={i} className={'fav ' + (has(sport, t.name) ? 'on' : '')} onClick={() => toggle(sport, t)}>{has(sport, t.name) ? '★ Suivi' : '☆ Suivre'}</button>)}</div>
+            <div className="teams">{[m.home, m.away].map((t, i) => t.tbd ? <span key={i} /> : <button key={i} className={'fav ' + (has(sport, t.name) ? 'on' : '')} onClick={() => toggle(sport, t)}>{has(sport, t.name) ? '★ Suivi' : '☆ Suivre'}</button>)}</div>
             {lines && <span className="mono">{lines}</span>}
           </div>
-          <div className="seg">{[['stats', 'Stats'], ['resume', 'Temps forts']].map(([k, n]) =>
+          <div className="seg">{[['stats', 'Stats'], ['resume', 'Temps forts'], ...(sport === 'foot' ? [['compos', 'Compos']] : [])].map(([k, n]) =>
             <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{n}</button>)}</div>
-          {tab === 'stats' ? (d.stats?.length ? <div className="panel">{d.stats.map(s => {
+          {tab === 'compos' ? <Lineups l={d.lineups} side={side} setSide={setSide} pre={m.state === 'pre'} />
+          : tab === 'stats' ? (d.stats?.length ? <div className="panel">{d.stats.map(s => {
             const a = parseFloat(s.home) || 0, b = parseFloat(s.away) || 0, r = a + b ? a / (a + b) : 0.5;
             return <div className="stat" key={s.label}><div className="r">{s.home}<span>{s.label}</span>{s.away}</div>
               <div className="bar"><i style={{ flex: r }} /><i style={{ flex: 1 - r }} /></div></div>;
           })}</div> : <div className="empty">Statistiques pas encore disponibles.</div>)
           : (d.events?.length ? <div className="panel">{d.events.map((e, i) =>
-            <div className="ev" key={i}><b>{e.time}</b><span>{e.text}</span></div>)}</div>
+            <div className={'ev' + (e.kind === 'goal' ? ' goal' : '')} key={i}><b>{e.time}</b>{e.icon && <i aria-hidden="true">{e.icon}</i>}<span>{e.text}</span></div>)}</div>
             : <div className="empty">Aucun temps fort pour l’instant.</div>)}
         </>}
     </div>
   );
+}
+
+// Compositions : terrain (attaque en haut, gardien en bas) + remplaçants.
+function Lineups({ l, side, setSide, pre }) {
+  if (!l?.length) return <div className="empty">{pre ? 'Compositions pas encore annoncées (en général 1 h avant le coup d’envoi).' : 'Compositions indisponibles pour ce match.'}</div>;
+  const t = l[side] || l[0];
+  const P = ({ p }) => (
+    <div className="pl"><span className="num">{p.n}</span>
+      <span className="pn">{p.short}</span>
+      {(p.marks || p.out) && <span className="pm">{p.marks}{p.out && <b title="Remplacé">↓</b>}</span>}</div>);
+  return (<>
+    {l.length > 1 && <div className="seg">{l.map((x, i) => <button key={i} className={i === side ? 'on' : ''} onClick={() => setSide(i)}>{x.team}</button>)}</div>}
+    <div className="pitch">
+      {t.formation && <span className="mono form">{t.formation}</span>}
+      {[...t.lines].reverse().map((row, i) => <div className="prow" key={i}>{row.map(p => <P key={p.n + p.name} p={p} />)}</div>)}
+    </div>
+    {t.subs.length > 0 && <section className="sec"><h2 className="mono">Remplaçants · {t.subs.length}</h2>
+      <div className="panel subs">{t.subs.map(p => (
+        <div className="sub" key={p.n + p.name}><span className="num">{p.n}</span><span className="sn">{p.name}</span>
+          <span className="pm">{p.marks}{p.in && <b className="in" title="Entré en jeu">↑</b>}</span></div>))}</div></section>}
+  </>);
 }

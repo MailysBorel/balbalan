@@ -18,7 +18,7 @@ const Sets = ({ m, me, op }) => me.lines.map((v, i) => {
   const done = !(m.state === 'live' && i === me.lines.length - 1), won = done && +v > +(op.lines[i] ?? -1);
   return <span key={i} className={'set' + (won ? ' w' : '')}>{v}</span>;
 });
-const Team = ({ t }) => <span className="team">{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.short}</span>;
+const Team = ({ t }) => <span className={'team' + (t.tbd ? ' tbd' : '')}>{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.logo2 && <img src={t.logo2} alt="" loading="lazy" />}{t.short}</span>;
 
 export function MatchCard({ m }) {
   const pre = m.state === 'pre', l = lead(m);

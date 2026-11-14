@@ -1,6 +1,7 @@
 // Adaptateur ESPN (non officiel). Pour changer de fournisseur, réécris seulement ce fichier
 // en gardant le même format de sortie (objet "match" ci-dessous).
 import { toEnglish, toFrench, norm } from './countries';
+import { soccerEvents, soccerLineups, statLabel } from './soccer';
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 export const SPORTS = {
   foot: {
@@ -23,9 +24,23 @@ async function get(url) {
   return r.json();
 }
 const state = s => (s === 'in' ? 'live' : s === 'post' ? 'post' : 'pre');
+const TBD = { name: 'À déterminer', short: 'À déterminer', tbd: true, score: null, logo: null, lines: [] };
+const flag = a => (typeof a?.flag === 'string' ? a.flag : a?.flag?.href) || null;
 function side(c) {
-  if (!c) return { name: '?', short: '?', score: null, logo: null, lines: [] };
-  const t = c.team || c.athlete || {};
+  if (!c) return TBD;
+  const ps = c.roster?.athletes || [];
+  if (ps.length) { // double de tennis : une « équipe » de deux joueurs
+    const last = a => (a.shortName || a.displayName || '?').replace(/^\S+\.\s+/, ''); // « N. Mektic » → « Mektic »
+    const flags = [...new Set(ps.map(flag).filter(Boolean))];
+    return {
+      name: c.roster.displayName || ps.map(a => a.displayName).join(' / '),
+      short: ps.map(last).join(' / '),
+      score: c.score ?? null, logo: flags[0] || null, logo2: flags[1] || null,
+      lines: (c.linescores || []).map(l => l.value ?? l.displayValue),
+    };
+  }
+  const t = c.team || c.athlete;
+  if (!t || !(t.displayName || t.name)) return { ...TBD, lines: (c.linescores || []).map(l => l.value ?? l.displayValue) };
   return {
     name: t.displayName || t.name || '?',
     short: t.shortDisplayName || t.shortName || t.displayName || t.abbreviation || '?',
@@ -65,10 +80,12 @@ export async function scoreboard(sport, date) {
     const { l, d } = r.value;
     const lg = d.leagues?.[0]?.abbreviation || d.leagues?.[0]?.name || l;
     for (const ev of d.events || []) {
-      const comps = ev.competitions?.length ? ev.competitions : (ev.groupings || []).flatMap(g => g.competitions || []);
+      // tennis : les matchs sont rangés par tableau (simple messieurs, double dames…)
+      const comps = ev.competitions?.length ? ev.competitions
+        : (ev.groupings || []).flatMap(g => (g.competitions || []).map(c => ({ ...c, _double: /doubles/i.test(g.grouping?.slug || g.grouping?.displayName || '') })));
       for (const c of comps) {
         const k = l + ':' + (c.id || ev.id); if (seen.has(k)) continue; seen.add(k);
-        const m = toMatch(ev, c, sport, l, sport === 'tennis' ? ev.shortName || ev.name || lg : NAMES[l] || lg);
+        const m = toMatch(ev, c, sport, l, sport === 'tennis' ? (ev.shortName || ev.name || lg) + (c._double ? ' · Double' : '') : NAMES[l] || lg);
         m.order = S.leagues.indexOf(l); // ordre d'affichage des compétitions
         out.push(m);
       }
@@ -87,12 +104,22 @@ export async function matchDetail(sport, league, id) {
   if (teams.length === 2) {
     const [t0, t1] = teams[0].homeAway === 'away' ? [teams[1], teams[0]] : teams;
     const map = new Map((t1.statistics || []).map(s => [s.name, s]));
-    stats = (t0.statistics || []).filter(s => map.has(s.name) && s.displayValue != null)
-      .map(s => ({ label: s.label || s.abbreviation || s.name, home: s.displayValue, away: map.get(s.name).displayValue })).slice(0, 8);
+    let list = (t0.statistics || []).filter(s => map.has(s.name) && s.displayValue != null);
+    if (sport === 'foot') { // stats choisies, dans cet ordre, libellés en français
+      const pick = ['possessionPct', 'totalShots', 'shotsOnTarget', 'wonCorners', 'foulsCommitted', 'yellowCards', 'redCards', 'offsides', 'saves', 'accuratePasses'];
+      list = pick.map(n => list.find(s => s.name === n)).filter(Boolean);
+    }
+    stats = list.map(s => ({
+      label: (sport === 'foot' && statLabel(s)) || s.label || s.abbreviation || s.name,
+      home: s.displayValue + (s.name === 'possessionPct' ? '%' : ''),
+      away: map.get(s.name).displayValue + (s.name === 'possessionPct' ? '%' : ''),
+    })).slice(0, 8);
   }
-  const events = (d.keyEvents || []).filter(e => e.text || e.type?.text)
-    .map(e => ({ time: e.clock?.displayValue || '', text: e.text || e.type?.text })).reverse().slice(0, 12);
-  return { match, stats, events };
+  const events = sport === 'foot' ? soccerEvents(d.keyEvents)
+    : (d.keyEvents || []).filter(e => e.text || e.type?.text)
+      .map(e => ({ time: e.clock?.displayValue || '', text: e.text || e.type?.text })).reverse().slice(0, 12);
+  const lineups = sport === 'foot' ? soccerLineups(d.rosters, d.keyEvents) : null;
+  return { match, stats, events, lineups };
 }
 
 export const NAMES = { 'fra.1': 'Ligue 1', 'eng.1': 'Premier League', 'esp.1': 'LaLiga', 'ita.1': 'Serie A', 'ger.1': 'Bundesliga', 'uefa.champions': 'Ligue des champions', 'uefa.nations': 'Ligue des nations', 'fifa.friendly': 'Match amical', 'fifa.worldq.uefa': 'Qualif. Mondial · Europe', 'uefa.euroq': 'Qualif. Euro', 'fifa.world': 'Coupe du monde', 'uefa.euro': 'Euro',
