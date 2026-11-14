@@ -5,9 +5,13 @@ export const SPORTS = {
   foot: {
     path: 'soccer',
     leagues: ['fra.1', 'eng.1', 'esp.1', 'ita.1', 'ger.1', 'uefa.champions',
-      'uefa.nations', 'fifa.friendly', 'fifa.worldq.uefa', 'uefa.euroq', 'fifa.world', 'uefa.euro'],
+      'uefa.nations', 'fifa.friendly', 'fifa.worldq.uefa', 'uefa.euroq', 'fifa.world', 'uefa.euro',
+      'caf.nations_qual', 'caf.nations', 'fifa.worldq.caf',
+      'conmebol.america', 'fifa.worldq.conmebol',
+      'concacaf.nations.league', 'concacaf.gold', 'fifa.worldq.concacaf',
+      'afc.cupq', 'afc.asian.cup', 'fifa.worldq.afc'],
     // compétitions avec un classement (les amicaux n'en ont pas)
-    standings: ['fra.1', 'eng.1', 'esp.1', 'ita.1', 'ger.1', 'uefa.champions', 'uefa.nations'],
+    standings: ['fra.1', 'eng.1', 'esp.1', 'ita.1', 'ger.1', 'uefa.champions', 'uefa.nations', 'caf.nations_qual', 'concacaf.nations.league', 'afc.cupq'],
   },
   basket: { path: 'basketball', leagues: ['nba'] },
   tennis: { path: 'tennis', leagues: ['atp', 'wta'] },
@@ -63,7 +67,9 @@ export async function scoreboard(sport, date) {
       const comps = ev.competitions?.length ? ev.competitions : (ev.groupings || []).flatMap(g => g.competitions || []);
       for (const c of comps) {
         const k = l + ':' + (c.id || ev.id); if (seen.has(k)) continue; seen.add(k);
-        out.push(toMatch(ev, c, sport, l, sport === 'tennis' ? ev.shortName || ev.name || lg : NAMES[l] || lg));
+        const m = toMatch(ev, c, sport, l, sport === 'tennis' ? ev.shortName || ev.name || lg : NAMES[l] || lg);
+        m.order = S.leagues.indexOf(l); // ordre d'affichage des compétitions
+        out.push(m);
       }
     }
   }
@@ -88,7 +94,11 @@ export async function matchDetail(sport, league, id) {
   return { match, stats, events };
 }
 
-export const NAMES = { 'fra.1': 'Ligue 1', 'eng.1': 'Premier League', 'esp.1': 'LaLiga', 'ita.1': 'Serie A', 'ger.1': 'Bundesliga', 'uefa.champions': 'Ligue des champions', 'uefa.nations': 'Ligue des nations', 'fifa.friendly': 'Match amical', 'fifa.worldq.uefa': 'Qualif. Coupe du monde', 'uefa.euroq': 'Qualif. Euro', 'fifa.world': 'Coupe du monde', 'uefa.euro': 'Euro', nba: 'NBA', atp: 'ATP', wta: 'WTA' };
+export const NAMES = { 'fra.1': 'Ligue 1', 'eng.1': 'Premier League', 'esp.1': 'LaLiga', 'ita.1': 'Serie A', 'ger.1': 'Bundesliga', 'uefa.champions': 'Ligue des champions', 'uefa.nations': 'Ligue des nations', 'fifa.friendly': 'Match amical', 'fifa.worldq.uefa': 'Qualif. Mondial · Europe', 'uefa.euroq': 'Qualif. Euro', 'fifa.world': 'Coupe du monde', 'uefa.euro': 'Euro',
+  'caf.nations_qual': 'Qualif. CAN', 'caf.nations': 'CAN', 'fifa.worldq.caf': 'Qualif. Mondial · Afrique',
+  'conmebol.america': 'Copa América', 'fifa.worldq.conmebol': 'Qualif. Mondial · Amérique du Sud',
+  'concacaf.nations.league': 'Ligue des nations CONCACAF', 'concacaf.gold': 'Gold Cup', 'fifa.worldq.concacaf': 'Qualif. Mondial · CONCACAF',
+  'afc.cupq': 'Qualif. Coupe d’Asie', 'afc.asian.cup': 'Coupe d’Asie', 'fifa.worldq.afc': 'Qualif. Mondial · Asie', nba: 'NBA', atp: 'ATP', wta: 'WTA' };
 const stat = (e, n) => e.stats?.find(s => s.name === n || s.type === n);
 export async function standings(sport) {
   const S = SPORTS[sport];
@@ -117,7 +127,7 @@ export async function standings(sport) {
           : { ...base, k: v('rank')?.value ?? 1000 - (v('points')?.value ?? 0), cols: [v('gamesPlayed')?.displayValue, v('pointDifferential')?.displayValue, v('points')?.displayValue] };
       });
       rows.sort((a, b) => a.k - b.k); rows = rows.map(({ k, ...x }, i) => ({ ...x, rank: i + 1 }));
-      const name = sport === 'basket' ? (c.name || c.abbreviation || 'NBA').replace(' Conference', '') : NAMES[l] + (kids.length > 1 ? ' · ' + (c.abbreviation || c.name).replace(/^Group /, 'Groupe ') : '');
+      const name = sport === 'basket' ? (c.name || c.abbreviation || 'NBA').replace(' Conference', '') : NAMES[l] + (kids.length > 1 ? ' · ' + (c.abbreviation || c.name).replace(/Group /g, 'Groupe ').replace(/League /g, 'Ligue ') : '');
       groups.push({ name, cols: sport === 'basket' ? ['V', 'D', '%'] : ['J', '+/-', 'Pts'], rows });
     }
   }

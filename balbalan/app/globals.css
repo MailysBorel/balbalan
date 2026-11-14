@@ -73,3 +73,7 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 @media (prefers-reduced-motion:reduce){.sheet,.sheet-bg{animation:none}}
 .sc.sets{display:flex;gap:6px}
 .set{min-width:1ch;text-align:center;color:var(--muted)}.set.w{color:var(--accent)}
+.comp{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);color:var(--text);padding:6px 4px 10px;text-align:left}
+.comp .name{flex:1;min-width:0;font:700 14px var(--disp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.comp .dot{width:8px;height:8px;border-radius:50%;background:var(--live)}
+.comp .chev{color:var(--muted);transition:transform .2s}.comp[aria-expanded=false] .chev{transform:rotate(-90deg)}

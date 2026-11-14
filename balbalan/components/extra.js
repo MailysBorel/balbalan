@@ -1,5 +1,39 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { MatchCard } from './ui';
+
+// Matchs regroupés par compétition, chaque groupe se plie/déplie (mémorisé sur l'appareil).
+export function CompGroups({ list, sport }) {
+  const [closed, setClosed] = useState([]);
+  useEffect(() => { try { setClosed(JSON.parse(localStorage.getItem('closed') || '[]')); } catch {} }, []);
+  const toggle = k => setClosed(c => {
+    const n = c.includes(k) ? c.filter(x => x !== k) : [...c, k];
+    try { localStorage.setItem('closed', JSON.stringify(n)); } catch {}
+    return n;
+  });
+  const groups = [];
+  for (const m of list) {
+    let g = groups.find(x => x.name === m.leagueName);
+    if (!g) groups.push(g = { name: m.leagueName, order: m.order ?? 99, list: [] });
+    g.list.push(m);
+  }
+  const live = g => g.list.some(m => m.state === 'live');
+  groups.sort((a, b) => live(b) - live(a) || a.order - b.order || a.name.localeCompare(b.name));
+  return groups.map(g => {
+    const k = sport + ':' + g.name, open = !closed.includes(k), id = 'cg-' + k.replace(/\W/g, '-');
+    return (
+      <section className="sec" key={k}>
+        <button className="comp" aria-expanded={open} aria-controls={id} onClick={() => toggle(k)}>
+          <span className="name">{g.name}</span>
+          {live(g) && <span className="dot" aria-label="en direct" />}
+          <span className="mono">{g.list.length}</span>
+          <svg className="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+        {open && <div className="sec" id={id}>{g.list.map(m => <MatchCard key={m.id} m={m} />)}</div>}
+      </section>
+    );
+  });
+}
 
 export function useFavs() {
   const [favs, setF] = useState([]);

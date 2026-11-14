@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Logo, MatchCard, TabBar, InstallHint, localYmd } from '../components/ui';
-import { DateStrip, Standings, Profile, useFavs } from '../components/extra';
+import { DateStrip, Standings, Profile, CompGroups, useFavs } from '../components/extra';
 const SPORTS = [['foot', 'Foot'], ['basket', 'Basket'], ['tennis', 'Tennis']];
 
 export default function Home() {
@@ -29,8 +29,6 @@ export default function Home() {
   const all = (data || []).filter(m => localYmd(m.start) === date);
   const live = all.filter(m => m.state === 'live');
   const mine = all.filter(m => favs.some(f => f.sport === sport && (f.name === m.home.name || f.name === m.away.name)));
-  const next = all.filter(m => m.state === 'pre');
-  const done = all.filter(m => m.state === 'post').reverse();
   const hero = live[0];
   const Sec = ({ t, list }) => list.length ? (
     <section className="sec"><h2 className="mono">{t} · {list.length}</h2>{list.map(m => <MatchCard key={m.id} m={m} />)}</section>) : null;
@@ -54,8 +52,7 @@ export default function Home() {
                 <div className="score">{hero.home.score ?? 0}—{hero.away.score ?? 0}</div>
                 <div className="teams"><span>{hero.home.short}</span><span>{hero.away.short}</span></div></Link>}
               {tab === 'matchs' && <Sec t="Mes équipes" list={mine} />}
-              <Sec t="En direct" list={live} />
-              {tab === 'matchs' && <><Sec t="À venir" list={next} /><Sec t="Résultats" list={done} /></>}
+              <CompGroups list={tab === 'live' ? live : all} sport={sport} />
               {(tab === 'live' ? !live.length : !all.length) && <div className="empty">{tab === 'live' ? 'Aucun match en direct.' : 'Aucun match ce jour-là.'}</div>}
             </>}
         </>}
