@@ -71,3 +71,5 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 .sheet .later{background:none;border:0;color:var(--muted);font-size:14px;padding:8px}
 @keyframes up{from{transform:translateY(100%)}}@keyframes fade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){.sheet,.sheet-bg{animation:none}}
+.sc.sets{display:flex;gap:6px}
+.set{min-width:1ch;text-align:center;color:var(--muted)}.set.w{color:var(--accent)}

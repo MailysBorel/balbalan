@@ -13,18 +13,24 @@ export const fmtTime = d => {
 };
 export const statusText = m => (m.state === 'pre' ? fmtTime(m.start) : m.state === 'post' ? 'Terminé' : m.status || 'Live');
 const lead = m => { const a = +m.home.score, b = +m.away.score; return a > b ? 0 : b > a ? 1 : -1; };
+// Tennis : un chiffre par manche, surligné pour le joueur qui l'a gagnée (sauf la manche en cours).
+const Sets = ({ m, me, op }) => me.lines.map((v, i) => {
+  const done = !(m.state === 'live' && i === me.lines.length - 1), won = done && +v > +(op.lines[i] ?? -1);
+  return <span key={i} className={'set' + (won ? ' w' : '')}>{v}</span>;
+});
 const Team = ({ t }) => <span className="team">{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.short}</span>;
 
 export function MatchCard({ m }) {
   const pre = m.state === 'pre', l = lead(m);
-  const [a, b] = m.sport === 'tennis' ? [m.home.lines.join(' '), m.away.lines.join(' ')] : [m.home.score, m.away.score];
+  const tennis = m.sport === 'tennis' && m.home.lines.length > 0;
+  const [a, b] = tennis ? [<Sets m={m} me={m.home} op={m.away} />, <Sets m={m} me={m.away} op={m.home} />] : [m.home.score, m.away.score];
   return (
     <Link href={`/match/${m.sport}/${m.league}/${m.id}?d=${localYmd(m.start)}`} className={'card ' + m.state}>
       <span className="stripe" />
       <div className="mid"><span className="mono">{m.leagueName}</span><Team t={m.home} /><Team t={m.away} /></div>
       <div className="end"><span className="st">{statusText(m)}</span>
-        <span className={'sc ' + (l === 0 ? 'w' : '')}>{pre ? '–' : a || '0'}</span>
-        <span className={'sc ' + (l === 1 ? 'w' : '')}>{pre ? '–' : b || '0'}</span></div>
+        <span className={'sc ' + (tennis ? 'sets' : l === 0 ? 'w' : '')}>{pre ? '–' : a || '0'}</span>
+        <span className={'sc ' + (tennis ? 'sets' : l === 1 ? 'w' : '')}>{pre ? '–' : b || '0'}</span></div>
     </Link>
   );
 }
