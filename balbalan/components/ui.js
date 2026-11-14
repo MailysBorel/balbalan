@@ -44,18 +44,45 @@ export function TabBar({ tab, set }) {
   );
 }
 
+// Pop-up « installer l'app » : s'affiche 3 s après l'arrivée, sur mobile uniquement,
+// jamais si l'app est déjà installée ou si l'utilisateur l'a fermée.
 export function InstallHint() {
-  const [show, setShow] = useState(false);
+  const [os, setOs] = useState(null); // 'ios' | 'android' | null
+  const [prompt, setPrompt] = useState(null);
   useEffect(() => {
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const ua = navigator.userAgent;
+    const ios = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+    const android = /android/i.test(ua);
     const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
-    let off = false; try { off = !!localStorage.getItem('hint-off'); } catch {}
-    setShow(ios && !standalone && !off);
+    let off = false; try { off = !!localStorage.getItem('install-hint-off'); } catch {}
+    const onPrompt = e => { e.preventDefault(); setPrompt(e); };
+    addEventListener('beforeinstallprompt', onPrompt);
+    const t = (ios || android) && !standalone && !off ? setTimeout(() => setOs(ios ? 'ios' : 'android'), 3000) : null;
+    return () => { clearTimeout(t); removeEventListener('beforeinstallprompt', onPrompt); };
   }, []);
-  if (!show) return null;
+  if (!os) return null;
+  const close = () => { setOs(null); try { localStorage.setItem('install-hint-off', '1'); } catch {} };
+  const install = async () => { prompt.prompt(); try { await prompt.userChoice; } catch {} close(); };
+  const share = <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3M8 7l4-4 4 4" /><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1" /></svg>;
+  const plus = <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="4" /><path d="M12 8v8M8 12h8" /></svg>;
   return (
-    <div className="hint"><span>Installe Balbalan : touche <b>Partager</b> puis <b>Sur l’écran d’accueil</b>.</span>
-      <button aria-label="Fermer" onClick={() => { setShow(false); try { localStorage.setItem('hint-off', '1'); } catch {} }}>✕</button></div>
+    <div className="sheet-bg" onClick={close}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="ih-t" onClick={e => e.stopPropagation()}>
+        <button className="x" aria-label="Fermer" onClick={close}>✕</button>
+        <img src="/icon-192.png" alt="" width="56" height="56" />
+        <h3 id="ih-t">Ajoute Balbalan à ton écran d’accueil</h3>
+        <p>Retrouve tes scores en un geste, comme une vraie app.</p>
+        {os === 'android' && prompt ? <button className="cta" onClick={install}>Installer l’app</button> : (
+          <ol>
+            {os === 'ios'
+              ? <><li><span className="ic">{share}</span>Touche <b>Partager</b> en bas de l’écran</li>
+                  <li><span className="ic">{plus}</span>Puis <b>Sur l’écran d’accueil</b></li></>
+              : <><li><span className="ic">⋮</span>Ouvre le <b>menu</b> du navigateur</li>
+                  <li><span className="ic">{plus}</span>Puis <b>Ajouter à l’écran d’accueil</b></li></>}
+          </ol>)}
+        <button className="later" onClick={close}>Plus tard</button>
+      </div>
+    </div>
   );
 }
 export function SW() {
