@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
 import { fmtTime, statusText } from '../../../../../components/ui';
 import { useFavs } from '../../../../../components/extra';
 
 export default function Match() {
   const { sport, league, id } = useParams();
+  const router = useRouter();
   const [d, setD] = useState(null);
   const [tab, setTab] = useState('stats');
   const [side, setSide] = useState(0); // équipe affichée dans « Compos »
@@ -29,7 +29,7 @@ export default function Match() {
 
   return (
     <div className="app" data-sport={sport}>
-      <Link href="/" className="back">← <span className="mono">{m?.leagueName || ''}</span></Link>
+      <button className="back" onClick={() => (history.length > 1 ? router.back() : router.push('/'))}>← <span className="mono">{m?.leagueName || 'Retour'}</span></button>
       {d?.error ? <div className="empty">Match introuvable ou données indisponibles.</div>
         : !m ? <div className="skel big" />
         : <>

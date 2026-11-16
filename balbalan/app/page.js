@@ -5,6 +5,14 @@ import { Logo, MatchCard, TabBar, InstallHint, localYmd } from '../components/ui
 import { DateStrip, Standings, Profile, CompGroups, Search, useFavs } from '../components/extra';
 const SPORTS = [['foot', 'Foot'], ['basket', 'Basket'], ['tennis', 'Tennis']];
 
+// Le contenu arrive après coup (scores, classements) : on réessaie de défiler jusqu'à ce que la page soit assez haute (2 s max).
+function restoreScroll(y) {
+  if (!y) return;
+  const t0 = Date.now();
+  const go = () => { scrollTo(0, y); if (Math.abs(scrollY - y) > 2 && Date.now() - t0 < 2000) requestAnimationFrame(go); };
+  requestAnimationFrame(go);
+}
+
 export default function Home() {
   const [sport, setSport] = useState('foot');
   const [tab, setTab] = useState('matchs');
@@ -12,11 +20,29 @@ export default function Home() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [ready, setReady] = useState(false);
   const { favs } = useFavs();
   const date = localYmd(Date.now() + (tab === 'live' ? 0 : off) * 864e5);
 
-  useEffect(() => { try { const s = localStorage.getItem('sport'); if (s) setSport(s); } catch {} }, []);
+  // On retrouve l'onglet, le jour et la position de défilement en revenant d'une page match / équipe / joueur.
   useEffect(() => {
+    try {
+      const s = localStorage.getItem('sport'); if (s) setSport(s);
+      const v = JSON.parse(sessionStorage.getItem('home') || 'null');
+      if (v) { setTab(v.tab); setOff(v.off); restoreScroll(v.y); }
+    } catch {}
+    setReady(true);
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    const save = () => { if (location.pathname !== '/') return; try { sessionStorage.setItem('home', JSON.stringify({ tab, off, y: scrollY })); } catch {} };
+    save(); addEventListener('scroll', save, { passive: true });
+    return () => removeEventListener('scroll', save);
+  }, [ready, tab, off]);
+  const goHome = () => { setTab('matchs'); setOff(0); setSearching(false); scrollTo(0, 0); };
+
+  useEffect(() => {
+    if (!ready) return;
     try { localStorage.setItem('sport', sport); } catch {}
     if (tab === 'classements' || tab === 'profil') return;
     let on = true; setData(null); setErr(false);
@@ -27,7 +53,7 @@ export default function Home() {
     const wake = () => document.visibilityState === 'visible' && load(); // retour au premier plan : scores à jour tout de suite
     document.addEventListener('visibilitychange', wake);
     return () => { on = false; clearInterval(t); document.removeEventListener('visibilitychange', wake); };
-  }, [sport, date, tab]);
+  }, [sport, date, tab, ready]);
 
   const all = (data || []).filter(m => localYmd(m.start) === date);
   const live = all.filter(m => m.state === 'live');
@@ -39,7 +65,7 @@ export default function Home() {
 
   return (
     <div className="app" data-sport={sport}>
-      <header className="head"><div className="brand"><Logo />Balbalan</div>
+      <header className="head"><button className="brand" aria-label="Accueil" onClick={goHome}><Logo />Balbalan</button>
         <div className="head-r"><span className="mono">{new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
           <button className="icon" aria-label="Rechercher" onClick={() => setSearching(true)}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg></button></div></header>

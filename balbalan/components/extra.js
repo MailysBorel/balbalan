@@ -94,7 +94,8 @@ export function Standings({ sport }) {
   const [g, setG] = useState(null);
   const [i, setI] = useState(0);
   useEffect(() => {
-    let on = true; setG(null); setI(0);
+    let on = true; setG(null);
+    try { setI(+sessionStorage.getItem('standings:' + sport) || 0); } catch { setI(0); } // ATP / WTA… gardé au retour
     fetch('/api/standings?sport=' + sport).then(r => r.json()).then(d => on && setG(d.groups || [])).catch(() => on && setG([]));
     return () => { on = false; };
   }, [sport]);
@@ -103,7 +104,7 @@ export function Standings({ sport }) {
   const cur = g[i] || g[0];
   return (
     <>
-      <div className="chips scroll">{g.map((x, k) => <button key={k} className={'chip ' + (k === i ? 'on' : '')} onClick={() => setI(k)}>{x.name}</button>)}</div>
+      <div className="chips scroll">{g.map((x, k) => <button key={k} className={'chip ' + (k === i ? 'on' : '')} onClick={() => { setI(k); try { sessionStorage.setItem('standings:' + sport, k); } catch {} }}>{x.name}</button>)}</div>
       <div className="panel table" style={{ "--n": cur.cols.length }}>
         <div className="tr th"><span>#</span><span>{sport === 'tennis' ? 'Joueur' : 'Équipe'}</span>{cur.cols.map(c => <b key={c}>{c}</b>)}</div>
         {cur.rows.map(r => (
