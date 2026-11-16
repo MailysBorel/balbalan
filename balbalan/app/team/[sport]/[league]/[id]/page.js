@@ -25,7 +25,10 @@ export default function Team() {
       {m.result ? <span className={'res r' + m.result} title={RES[m.result]}>{m.result}</span> : <span className="res">–</span>}
       <span className="mid"><span className="team">{m.opp.logo && <img src={m.opp.logo} alt="" loading="lazy" />}{m.opp.logo2 && <img src={m.opp.logo2} alt="" loading="lazy" />}{m.opp.name}</span>
         <span className="mono">{[m.state === 'post' ? date(m.date) : time(m.date), sport === 'tennis' ? m.round : m.home ? 'Dom.' : 'Ext.', m.leagueName].filter(Boolean).join(' · ')}</span></span>
-      {m.score && <b className="sc">{Array.isArray(m.score) ? `${m.score[0]}-${m.score[1]}` : m.score}</b>}
+      {m.sets?.length ? <span className="tsets" title={m.score}>{m.sets.map(([a, b], i) => (
+          <span className="tset" key={i}><b className={+a > +b ? 'w' : ''}>{a}</b><b className={+b > +a ? 'w' : ''}>{b}</b></span>))}
+          {m.note && <span className="mono">{m.note}</span>}</span>
+        : m.score && <b className="sc">{Array.isArray(m.score) ? `${m.score[0]}-${m.score[1]}` : m.score}</b>}
     </Link>);
   return (
     <div className="app" data-sport={sport}>

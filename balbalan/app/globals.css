@@ -135,3 +135,8 @@ button.back{background:none;border:0;color:var(--text);padding:0;text-align:left
 .tg-c.w{color:var(--accent)}
 .tg-c.cur{color:var(--text);background:var(--surface2);border:1.5px solid var(--accent)}
 .go{margin-left:6px;color:var(--muted);font-weight:400}a.mid:active{opacity:.7}
+/* Page joueur (tennis) : jeux par set en colonnes, joueur en haut / adversaire en bas, gagnant du set en surbrillance */
+.tsets{display:flex;align-items:center;gap:4px;flex:none}
+.tset{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:22px}
+.tset b{font:800 17px/1.1 var(--disp);color:var(--muted)}.tset b.w{color:var(--accent)}
+.tsets .mono{margin-left:2px}

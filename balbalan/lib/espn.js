@@ -305,7 +305,11 @@ export async function playerSchedule(league, id) {
       r.result = me.winner ? 'V' : op.winner ? 'D' : r.result;
       const a = side(me).lines, b = side(op).lines, detail = f.c.status?.type?.detail || '';
       if (/walkover/i.test(detail)) r.score = 'w.o.';
-      else if (a.length) r.score = a.map((v, i) => `${v}-${b[i] ?? ''}`).join(' ') + (/retire/i.test(detail) ? ' ab.' : '');
+      else if (a.length) {
+        r.score = a.map((v, i) => `${v}-${b[i] ?? ''}`).join(' ') + (/retire/i.test(detail) ? ' ab.' : '');
+        r.sets = a.map((v, i) => [v, b[i] ?? '']); // jeux par set [joueur, adversaire], pour l'affichage en colonnes
+        if (/retire/i.test(detail)) r.note = 'ab.';
+      }
     }
   }
   const past = rows.filter(r => r.state === 'post' && r.result).slice(0, 15);
