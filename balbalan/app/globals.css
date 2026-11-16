@@ -160,3 +160,4 @@ button.back{background:none;border:0;color:var(--text);padding:0;text-align:left
 .panel.ntf{gap:0;padding:6px 16px 4px;margin-top:10px}.ntf h3{font:700 15px var(--disp);color:var(--accent);margin:10px 0 4px}
 .ntf-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .ntf-row:first-of-type{border-top:0}
+.ntf-err{color:var(--live);margin-top:10px}.ntf-test{margin-top:10px}

@@ -7,6 +7,7 @@
 //   hash « snap » : sport:compétition:id → dernier état connu du match (voir snapshot())
 import { Redis } from '@upstash/redis';
 import * as webpush from 'web-push'; // v4 : uniquement des exports nommés
+export { webpush };
 import { createHash } from 'crypto';
 import { scoreboard } from './espn';
 
@@ -20,14 +21,16 @@ export const TYPES = {
 let _redis;
 export function redis() {
   // Vercel → Storage → Upstash crée KV_REST_API_URL / KV_REST_API_TOKEN ; une base Upstash créée à la main donne UPSTASH_REDIS_REST_*
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  // (préfixe libre à la connexion : KV_REST_API_URL, STORAGE_REST_API_URL… → on prend le premier *_REST_API_URL trouvé)
+  const pre = Object.keys(process.env).find(k => k.endsWith('_REST_API_URL') && process.env[k.replace(/URL$/, 'TOKEN')])?.replace(/URL$/, '');
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || (pre && process.env[pre + 'URL']);
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || (pre && process.env[pre + 'TOKEN']);
   if (!url || !token) throw new Error('Base Redis non configurée (variables UPSTASH_REDIS_REST_URL / _TOKEN)');
   return (_redis ??= new Redis({ url, token }));
 }
 
 let vapidReady = false;
-function vapid() {
+export function vapid() {
   if (vapidReady) return;
   const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) throw new Error('Clés VAPID manquantes (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY)');

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MatchCard } from './ui';
 import { norm, toFrench } from '../lib/countries';
-import { LABELS, getPrefs, setPrefs, status as pushStatus, enable as enablePush, disable as disablePush, sync as syncPush, onFavAdded } from '../lib/push-client';
+import { LABELS, getPrefs, setPrefs, status as pushStatus, enable as enablePush, disable as disablePush, sync as syncPush, onFavAdded, lastError as lastPushError } from '../lib/push-client';
 
 // Matchs regroupés par compétition, chaque groupe se plie/déplie (mémorisé sur l'appareil).
 // Tennis : circuit (ATP, WTA…) › tournoi › simple / double.
@@ -124,14 +124,15 @@ export function Standings({ sport }) {
 const Switch = ({ on, onClick, label, disabled }) => (
   <button className={'switch' + (on ? ' on' : '')} role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={onClick}><i /></button>);
 function Notifs({ sports }) {
-  const [st, setSt] = useState(null), [prefs, setP] = useState(null), [busy, setBusy] = useState(false);
+  const [st, setSt] = useState(null), [prefs, setP] = useState(null), [busy, setBusy] = useState(false), [err, setErr] = useState(null);
   useEffect(() => {
-    const r = () => { setSt(pushStatus()); setP(getPrefs()); };
+    const r = () => { setSt(pushStatus()); setP(getPrefs()); setErr(lastPushError()); };
     r(); addEventListener('notif', r); return () => removeEventListener('notif', r);
   }, []);
   if (!st) return null;
   const on = st === 'on';
-  const main = async () => { setBusy(true); try { on ? await disablePush() : await enablePush(); } catch {} setBusy(false); setSt(pushStatus()); };
+  const main = async () => { setBusy(true); try { on ? await disablePush() : await enablePush(); } catch {} setBusy(false); setSt(pushStatus()); setErr(lastPushError()); };
+  const test = async () => { setBusy(true); try { await enablePush(); } catch {} setBusy(false); setErr(lastPushError()); }; // ré-abonne + notif de test
   const flip = (s, t) => { const p = { ...prefs, [s]: { ...prefs[s], [t]: !prefs[s][t] } }; setP(p); setPrefs(p); };
   return (
     <section className="sec"><h2 className="mono">Notifications</h2>
@@ -141,6 +142,8 @@ function Notifs({ sports }) {
           <div className="card ntf-main"><span className="mid"><b>Notifications</b>
             <span className="mono">{on ? 'Pour tes équipes et joueurs suivis' : 'Désactivées'}</span></span>
             <Switch on={on} onClick={main} disabled={busy} label="Notifications" /></div>
+          {err && <div className="empty ntf-err">Les notifications n’ont pas pu être activées : {err}</div>}
+          {on && <button className="chip ntf-test" disabled={busy} onClick={test}>Envoyer une notification de test</button>}
           {on && sports.map(([s, n]) => (
             <div className="panel ntf" data-sport={s} key={s}><h3>{n}</h3>
               {Object.entries(LABELS[s]).map(([t, l]) => (

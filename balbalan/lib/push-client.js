@@ -48,8 +48,18 @@ export async function enable() {
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') { emit(); return perm === 'denied' ? 'denied' : 'ask'; }
   put('notifOff', false);
-  await sync(await subscription(true));
+  try { await post(await subscription(true), true); put('notifErr', null); } // + notif de test envoyée par le serveur
+  catch (e) { put('notifErr', e?.message || String(e)); emit(); throw e; }
   emit(); return 'on';
+}
+// Dernière erreur d'activation (affichée dans le Profil), ou null
+export const lastError = () => get('notifErr', null);
+
+async function post(sub, test = false) {
+  const favs = get('favs', []).map(f => ({ sport: f.sport, name: toFrench(f.name) || f.name }));
+  const r = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sub: sub.toJSON(), favs, prefs: getPrefs(), test }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.error) throw new Error(d.error || `erreur serveur ${r.status}`);
 }
 
 export async function disable() {
@@ -64,15 +74,12 @@ export async function disable() {
 // Envoie les favoris + réglages au serveur (si les notifs sont actives)
 export async function sync(sub) {
   if (status() !== 'on') return;
-  try {
-    sub ??= await subscription(true);
-    const favs = get('favs', []).map(f => ({ sport: f.sport, name: toFrench(f.name) || f.name }));
-    await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sub: sub.toJSON(), favs, prefs: getPrefs() }) });
-  } catch {}
+  try { await post(sub ?? await subscription(true)); if (lastError()) { put('notifErr', null); emit(); } }
+  catch (e) { put('notifErr', e?.message || String(e)); emit(); }
 }
 
 // Ajout d'un favori : notifs activées par défaut (demande l'autorisation la 1re fois, sauf si l'utilisateur les a coupées)
 export function onFavAdded() {
   const s = status();
-  if (s === 'ask') enable(); else if (s === 'on') sync();
+  if (s === 'ask') enable().catch(() => {}); else if (s === 'on') sync();
 }
