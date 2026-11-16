@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Logo, MatchCard, TabBar, InstallHint, localYmd } from '../components/ui';
 import { DateStrip, Standings, Profile, CompGroups, Search, useFavs } from '../components/extra';
+import { sync as syncPush } from '../lib/push-client';
 const SPORTS = [['foot', 'Foot'], ['basket', 'Basket'], ['tennis', 'Tennis']];
 
 // Le contenu arrive après coup (scores, classements) : on réessaie de défiler jusqu'à ce que la page soit assez haute (2 s max).
@@ -28,6 +29,7 @@ export default function Home() {
   useEffect(() => {
     try {
       const s = localStorage.getItem('sport'); if (s) setSport(s);
+      syncPush(); // garde le serveur de notifs à jour (favoris, réglages, abonnement renouvelé par le téléphone)
       const v = JSON.parse(sessionStorage.getItem('home') || 'null');
       if (v) { setTab(v.tab); setOff(v.off); restoreScroll(v.y); }
     } catch {}

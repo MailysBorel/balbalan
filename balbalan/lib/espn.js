@@ -62,7 +62,17 @@ function toMatch(ev, comp, sport, league, leagueName) {
     id: String(comp.id || ev.id), sport, league, leagueName,
     state: state(st.type?.state), status: st.type?.shortDetail || st.type?.detail || '',
     start: comp.date || ev.date, home: side(h), away: side(a),
+    // pour les notifications : période en cours, statut exact (mi-temps, abandon…)
+    period: st.period ?? null, statusName: st.type?.name || '', detail: st.type?.detail || '',
   };
+  if (sport === 'foot') { // buts et cartons rouges (buteur, minute), du plus ancien au plus récent
+    const hid = h?.team?.id;
+    m.plays = (comp.details || []).filter(x => x.scoringPlay || x.redCard).map(x => ({
+      kind: x.scoringPlay ? 'goal' : 'red', side: x.team?.id === hid ? 'home' : 'away',
+      clock: x.clock?.displayValue || '', who: x.athletesInvolved?.[0]?.shortName || x.athletesInvolved?.[0]?.displayName || '',
+      own: !!x.ownGoal, pen: !!x.penaltyKick,
+    }));
+  }
   if (sport === 'tennis') { // score = sets gagnés
     const H = m.home.lines, A = m.away.lines; let sh = 0, sa = 0;
     H.forEach((v, i) => { if (i < A.length && !(m.state === 'live' && i === H.length - 1)) { if (+v > +A[i]) sh++; else if (+A[i] > +v) sa++; } });

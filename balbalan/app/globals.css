@@ -151,3 +151,12 @@ button.back{background:none;border:0;color:var(--text);padding:0;text-align:left
 /* Page équipe (foot / basket) : score avec le plus haut en surbrillance */
 .fsc{display:flex;align-items:baseline;gap:4px;flex:none;font:800 17px var(--disp);color:var(--muted)}
 .fsc b{font:inherit}.fsc b.w{color:var(--accent)}.fsc i{font-style:normal}
+/* Profil : réglages des notifications */
+.ntf-main b{font-weight:700}
+.switch{flex:none;width:46px;height:28px;border-radius:999px;border:0;padding:3px;background:var(--surface2);display:flex;transition:background .2s}
+.switch i{width:22px;height:22px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.switch.on{background:var(--accent)}.switch.on i{transform:translateX(18px);background:var(--ink)}
+.switch:disabled{opacity:.5}
+.panel.ntf{gap:0;padding:6px 16px 4px;margin-top:10px}.ntf h3{font:700 15px var(--disp);color:var(--accent);margin:10px 0 4px}
+.ntf-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.ntf-row:first-of-type{border-top:0}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MatchCard } from './ui';
 import { norm, toFrench } from '../lib/countries';
+import { LABELS, getPrefs, setPrefs, status as pushStatus, enable as enablePush, disable as disablePush, sync as syncPush, onFavAdded } from '../lib/push-client';
 
 // Matchs regroupés par compétition, chaque groupe se plie/déplie (mémorisé sur l'appareil).
 // Tennis : circuit (ATP, WTA…) › tournoi › simple / double.
@@ -74,7 +75,11 @@ export function useFavs() {
   }, []);
   const save = n => { try { localStorage.setItem('favs', JSON.stringify(n)); } catch {} dispatchEvent(new Event('favs')); };
   const has = (sport, name) => favs.some(x => x.sport === sport && x.name === fr(name));
-  const toggle = (sport, t) => save(has(sport, t.name) ? favs.filter(x => !(x.sport === sport && x.name === fr(t.name))) : [...favs, { sport, name: fr(t.name), logo: t.logo }]);
+  const toggle = (sport, t) => {
+    const added = !has(sport, t.name);
+    save(added ? [...favs, { sport, name: fr(t.name), logo: t.logo }] : favs.filter(x => !(x.sport === sport && x.name === fr(t.name))));
+    if (added) onFavAdded(); else syncPush(); // notifs activées par défaut pour un nouveau favori
+  };
   return { favs, has, toggle };
 }
 
@@ -115,6 +120,37 @@ export function Standings({ sport }) {
   );
 }
 
+// Réglages des notifications : interrupteur général + choix des événements par sport.
+const Switch = ({ on, onClick, label, disabled }) => (
+  <button className={'switch' + (on ? ' on' : '')} role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={onClick}><i /></button>);
+function Notifs({ sports }) {
+  const [st, setSt] = useState(null), [prefs, setP] = useState(null), [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const r = () => { setSt(pushStatus()); setP(getPrefs()); };
+    r(); addEventListener('notif', r); return () => removeEventListener('notif', r);
+  }, []);
+  if (!st) return null;
+  const on = st === 'on';
+  const main = async () => { setBusy(true); try { on ? await disablePush() : await enablePush(); } catch {} setBusy(false); setSt(pushStatus()); };
+  const flip = (s, t) => { const p = { ...prefs, [s]: { ...prefs[s], [t]: !prefs[s][t] } }; setP(p); setPrefs(p); };
+  return (
+    <section className="sec"><h2 className="mono">Notifications</h2>
+      {st === 'unsupported' ? <div className="empty">Pour recevoir les notifs (buts, fin de match…), ajoute Balbalan à l’écran d’accueil : Safari → Partager → « Sur l’écran d’accueil », puis ouvre l’app depuis son icône.</div>
+        : st === 'denied' ? <div className="empty">Notifications bloquées sur ce téléphone. Autorise-les dans Réglages → Notifications → Balbalan.</div>
+        : <>
+          <div className="card ntf-main"><span className="mid"><b>Notifications</b>
+            <span className="mono">{on ? 'Pour tes équipes et joueurs suivis' : 'Désactivées'}</span></span>
+            <Switch on={on} onClick={main} disabled={busy} label="Notifications" /></div>
+          {on && sports.map(([s, n]) => (
+            <div className="panel ntf" data-sport={s} key={s}><h3>{n}</h3>
+              {Object.entries(LABELS[s]).map(([t, l]) => (
+                <div className="ntf-row" key={t}><span>{l}</span><Switch on={prefs[s][t]} onClick={() => flip(s, t)} label={`${n} : ${l}`} /></div>))}
+            </div>))}
+        </>}
+    </section>
+  );
+}
+
 export function Profile({ sports, setSport, sport }) {
   const { favs, toggle } = useFavs();
   return (
@@ -126,6 +162,7 @@ export function Profile({ sports, setSport, sport }) {
             <button className="fav on" onClick={() => toggle(f.sport, f)}>★</button></div>))
           : <div className="empty">Ouvre un match et touche « ☆ Suivre » sous une équipe ou un joueur pour le retrouver ici et en haut de l’accueil.</div>}
       </section>
+      <Notifs sports={sports} />
       <section className="sec"><h2 className="mono">Sport à l’ouverture</h2>
         <div className="chips">{sports.map(([k, n]) => <button key={k} className={'chip ' + (sport === k ? 'on' : '')} onClick={() => setSport(k)}>{n}</button>)}</div></section>
     </>
