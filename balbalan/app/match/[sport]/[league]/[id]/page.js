@@ -24,8 +24,7 @@ export default function Match() {
   }, [sport, league, id]);
 
   const m = d?.match;
-  const p = { basket: 'Q', foot: 'MT', tennis: 'S' }[sport];
-  const lines = m ? m.home.lines.map((v, i) => `${p}${i + 1} ${v}-${m.away.lines[i] ?? ''}`).join(' · ') : '';
+  const grid = m && m.state !== 'pre' && m.home.lines.length > 0;
 
   return (
     <div className="app" data-sport={sport}>
@@ -33,17 +32,24 @@ export default function Match() {
       {d?.error ? <div className="empty">Match introuvable ou données indisponibles.</div>
         : !m ? <div className="skel big" />
         : <>
-          <div className="board">
+          <div className="board" data-wide={sport === 'basket' ? '' : undefined}>
             {m.state === 'live' ? <span className="badge">LIVE · {m.status}</span>
               : <span className="mono">{m.state === 'pre' ? [new Date(m.start).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }), m.round].filter(Boolean).join(' · ') : statusText(m)}</span>}
-            <div className="score">{m.state === 'pre' ? fmtTime(m.start) : `${m.home.score ?? 0}—${m.away.score ?? 0}`}</div>
-            <div className="sides">{[m.home, m.away].map((t, i) => (
-              <div className="side" key={i}>
-                <Avatar t={t} sport={sport} />
-                <span className="nm">{t.name}</span>
-                {!t.tbd && <button className={'fav ' + (has(sport, t.name) ? 'on' : '')} onClick={() => toggle(sport, t)}>{has(sport, t.name) ? '★ Suivi' : '☆ Suivre'}</button>}
-              </div>))}</div>
-            {sport === 'tennis' && m.home.lines.length ? <TennisGrid m={m} /> : lines && <span className="mono">{lines}</span>}
+            {m.state === 'pre' && <div className="score">{fmtTime(m.start)}</div>}
+            {(() => {
+              const Side = ({ t }) => (
+                <div className="side">
+                  <Avatar t={t} sport={sport} />
+                  <span className="nm">{t.name}</span>
+                  {!t.tbd && <button className={'fav ' + (has(sport, t.name) ? 'on' : '')} onClick={() => toggle(sport, t)}>{has(sport, t.name) ? '★ Suivi' : '☆ Suivre'}</button>}
+                </div>);
+              const a = m.home.score ?? 0, b = m.away.score ?? 0;
+              // score (sets gagnés au tennis) en gros entre les deux équipes, le plus haut en couleur
+              return <div className="sides"><Side t={m.home} />
+                {m.state !== 'pre' && <div className="vs"><b className={+a > +b ? 'w' : ''}>{a}</b><i>–</i><b className={+b > +a ? 'w' : ''}>{b}</b></div>}
+                <Side t={m.away} /></div>;
+            })()}
+            {grid && <PeriodGrid m={m} sport={sport} />}
           </div>
           {/* tennis : ESPN ne fournit ni stats ni temps forts → pas d'onglets */}
           {sport !== 'tennis' && <>
@@ -85,13 +91,19 @@ function Lineups({ l, side, setSide, pre }) {
   </>);
 }
 
-// Photo du joueur (tennis) avec son drapeau en pastille ; sinon drapeau(x) ou logo de l'équipe ; sinon initiales.
-// Tennis : tableau des jeux par set (comme la carte de l'accueil, en plus grand), set en cours encadré.
-function TennisGrid({ m }) {
-  const n = Math.max(m.home.lines.length, m.away.lines.length), cur = m.state === 'live' ? n - 1 : -1;
+// Libellé des colonnes : sets (tennis), mi-temps puis prolongations (foot), quart-temps puis prolongations (basket).
+const period = (sport, i) => sport === 'tennis' ? `S${i + 1}`
+  : sport === 'foot' ? 'MT'
+  : i < 4 ? `Q${i + 1}` : `P${i - 3}`;
+// Tableau du score par période (la plus haute valeur en surbrillance, période en cours encadrée).
+// puis le score final (sets gagnés au tennis), aussi affiché en gros entre les deux équipes. Vainqueur en couleur.
+function PeriodGrid({ m, sport }) {
+  // foot : seulement le score à la mi-temps (1re période) ; sinon toutes les périodes
+  const all = Math.max(m.home.lines.length, m.away.lines.length), n = sport === 'foot' ? 1 : all;
+  const cur = m.state === 'live' && all - 1 < n ? all - 1 : -1; // période en cours (encadrée) si elle est affichée
   const sets = [...Array(n).keys()];
   const Row = ({ me, op }) => {
-    const won = sets.filter(i => i !== cur && +me.lines[i] > +(op.lines[i] ?? -1)).length > sets.filter(i => i !== cur && +op.lines[i] > +(me.lines[i] ?? -1)).length;
+    const won = +me.score > +op.score; // tennis : sets gagnés ; foot / basket : score final
     return (
       <div className={'tg-row' + (m.state === 'post' && won ? ' win' : '')}>
         <span className="tg-nm">{me.logo && <img src={me.logo} alt="" />}{me.short}</span>
@@ -99,16 +111,19 @@ function TennisGrid({ m }) {
           const v = me.lines[i], w = i !== cur && +v > +(op.lines[i] ?? -1);
           return <span key={i} className={'tg-c' + (i === cur ? ' cur' : w ? ' w' : '')}>{v ?? ''}</span>;
         })}
+        <span className={'tg-t' + (won ? ' w' : '')}>{me.score ?? 0}</span>
       </div>);
   };
   return (
-    <div className="tgrid" style={{ '--n': n }}>
-      <div className="tg-row tg-h"><span />{sets.map(i => <span key={i} className={'tg-c' + (i === cur ? ' cur' : '')}>S{i + 1}</span>)}</div>
+    <div className={'tgrid' + (sport === 'basket' ? ' wide' : '')} style={{ '--n': n }}>
+      <div className="tg-row tg-h"><span />{sets.map(i => <span key={i} className={'tg-c' + (i === cur ? ' cur' : '')}>{period(sport, i)}</span>)}
+        <span className="tg-t">{sport === 'tennis' ? 'Sets' : 'Score'}</span></div>
       <Row me={m.home} op={m.away} />
       <Row me={m.away} op={m.home} />
     </div>);
 }
 
+// Photo du joueur (tennis) avec son drapeau en pastille ; sinon drapeau(x) ou logo de l'équipe ; sinon initiales.
 function Avatar({ t, sport }) {
   const [bad, setBad] = useState(false);
   useEffect(() => setBad(false), [t.photo]);

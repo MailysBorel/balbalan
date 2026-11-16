@@ -125,13 +125,21 @@ button.back{background:none;border:0;color:var(--text);padding:0;text-align:left
 .mrow .sc{white-space:nowrap;font-size:13px}
 /* Tennis : tableau des sets dans la page détail */
 .tgrid{width:100%;margin-top:6px;background:var(--bg);border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
-.tg-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(var(--n),40px);align-items:center;gap:6px;text-align:left}
+.tgrid{--pw:34px;--tw:50px}.tgrid.wide{--pw:30px;--tw:48px}.tgrid.wide .tg-row:not(.tg-h) .tg-c{font-size:15px}.tgrid.wide .tg-row:not(.tg-h) .tg-t{font-size:20px}
+.tg-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(var(--n),var(--pw)) var(--tw);align-items:center;gap:4px;text-align:left}
 .tg-h{font:600 10px var(--mono);letter-spacing:.1em;color:var(--muted)}.tg-h .tg-c{font:inherit;height:auto}
 .tg-h .tg-c.cur{color:var(--accent);background:none;border:0}
 .tg-nm{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.tg-nm img{width:22px;height:15px;object-fit:cover;border-radius:2px;flex:none}
+.tg-nm img{width:22px;height:18px;object-fit:contain;border-radius:2px;flex:none}
 .tg-row.win .tg-nm{color:var(--accent)}
-.tg-c{text-align:center;font:800 24px/1 var(--disp);color:var(--muted);height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.tg-c{text-align:center;font:700 17px/1 var(--disp);color:var(--muted);height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+/* score final : dernière colonne du tableau */
+.tg-t{text-align:right;font:900 22px/1 var(--disp);color:var(--muted)}.tg-t.w{color:var(--accent)}
+.tg-h .tg-t{font:inherit;color:var(--muted)}
+/* score final en gros entre les deux équipes, à la hauteur des drapeaux / logos */
+.vs{flex:none;align-self:flex-start;height:76px;display:flex;align-items:center;gap:6px;font:900 clamp(34px,11vw,48px)/1 var(--disp);color:var(--text)}
+.vs b{font:inherit}.vs b.w{color:var(--accent)}.vs i{font-style:normal;color:var(--muted)}
+.board[data-wide] .vs{font-size:clamp(26px,8vw,36px)}
 .tg-c.w{color:var(--accent)}
 .tg-c.cur{color:var(--text);background:var(--surface2);border:1.5px solid var(--accent)}
 .go{margin-left:6px;color:var(--muted);font-weight:400}a.mid:active{opacity:.7}
