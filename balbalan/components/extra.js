@@ -64,15 +64,17 @@ export function CompGroups({ list, sport }) {
     </Group>));
 }
 
+const fr = n => toFrench(n) || n;
 export function useFavs() {
   const [favs, setF] = useState([]);
   useEffect(() => {
-    const r = () => { try { setF(JSON.parse(localStorage.getItem('favs') || '[]')); } catch {} };
+    // noms en français (les anciens favoris étaient parfois enregistrés en anglais : « Belgium » → « Belgique »)
+    const r = () => { try { setF(JSON.parse(localStorage.getItem('favs') || '[]').map(x => ({ ...x, name: fr(x.name) }))); } catch {} };
     r(); addEventListener('favs', r); return () => removeEventListener('favs', r);
   }, []);
   const save = n => { try { localStorage.setItem('favs', JSON.stringify(n)); } catch {} dispatchEvent(new Event('favs')); };
-  const has = (sport, name) => favs.some(x => x.sport === sport && x.name === name);
-  const toggle = (sport, t) => save(has(sport, t.name) ? favs.filter(x => !(x.sport === sport && x.name === t.name)) : [...favs, { sport, name: t.name, logo: t.logo }]);
+  const has = (sport, name) => favs.some(x => x.sport === sport && x.name === fr(name));
+  const toggle = (sport, t) => save(has(sport, t.name) ? favs.filter(x => !(x.sport === sport && x.name === fr(t.name))) : [...favs, { sport, name: fr(t.name), logo: t.logo }]);
   return { favs, has, toggle };
 }
 

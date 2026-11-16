@@ -43,9 +43,10 @@ function side(c) {
   }
   const t = c.team || c.athlete;
   if (!t || !(t.displayName || t.name)) return { ...TBD, lines: (c.linescores || []).map(l => l.value ?? l.displayValue) };
+  const fr = toFrench(t.displayName || t.name); // sélections nationales en français (« Belgium » → « Belgique »)
   return {
-    name: t.displayName || t.name || '?',
-    short: t.shortDisplayName || t.shortName || t.displayName || t.abbreviation || '?',
+    name: fr || t.displayName || t.name || '?',
+    short: fr || t.shortDisplayName || t.shortName || t.displayName || t.abbreviation || '?',
     score: c.score ?? null,
     logo: t.logo || t.logos?.[0]?.href || t.flag?.href || null,
     photo: c.athlete && /^\d+$/.test(c.id || '') ? `https://a.espncdn.com/combiner/i?img=/i/headshots/tennis/players/full/${c.id}.png&w=192&h=140` : null,

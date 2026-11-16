@@ -12,7 +12,7 @@ export const COUNTRIES = {
   'Lettonie': 'Latvia', 'Liechtenstein': 'Liechtenstein', 'Lituanie': 'Lithuania', 'Luxembourg': 'Luxembourg',
   'Macédoine du Nord': 'North Macedonia', 'Malte': 'Malta', 'Moldavie': 'Moldova', 'Monténégro': 'Montenegro',
   'Norvège': 'Norway', 'Pays de Galles': 'Wales', 'Pays-Bas': 'Netherlands', 'Hollande': 'Netherlands',
-  'Pologne': 'Poland', 'Portugal': 'Portugal', 'République tchèque': 'Czechia', 'Tchéquie': 'Czechia',
+  'Pologne': 'Poland', 'Portugal': 'Portugal', 'Tchéquie': 'Czechia', 'République tchèque': 'Czechia',
   'Roumanie': 'Romania', 'Russie': 'Russia', 'Saint-Marin': 'San Marino', 'Serbie': 'Serbia', 'Slovaquie': 'Slovakia',
   'Slovénie': 'Slovenia', 'Suède': 'Sweden', 'Suisse': 'Switzerland', 'Turquie': 'Türkiye', 'Ukraine': 'Ukraine',
   // Afrique
