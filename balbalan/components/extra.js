@@ -132,7 +132,6 @@ function Notifs({ sports }) {
   if (!st) return null;
   const on = st === 'on';
   const main = async () => { setBusy(true); try { on ? await disablePush() : await enablePush(); } catch {} setBusy(false); setSt(pushStatus()); setErr(lastPushError()); };
-  const test = async () => { setBusy(true); try { await enablePush(); } catch {} setBusy(false); setErr(lastPushError()); }; // ré-abonne + notif de test
   const flip = (s, t) => { const p = { ...prefs, [s]: { ...prefs[s], [t]: !prefs[s][t] } }; setP(p); setPrefs(p); };
   return (
     <section className="sec"><h2 className="mono">Notifications</h2>
@@ -143,7 +142,6 @@ function Notifs({ sports }) {
             <span className="mono">{on ? 'Pour tes équipes et joueurs suivis' : 'Désactivées'}</span></span>
             <Switch on={on} onClick={main} disabled={busy} label="Notifications" /></div>
           {err && <div className="empty ntf-err">Les notifications n’ont pas pu être activées : {err}</div>}
-          {on && <button className="chip ntf-test" disabled={busy} onClick={test}>Envoyer une notification de test</button>}
           {on && sports.map(([s, n]) => (
             <div className="panel ntf" data-sport={s} key={s}><h3>{n}</h3>
               {Object.entries(LABELS[s]).map(([t, l]) => (

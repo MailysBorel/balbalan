@@ -48,16 +48,16 @@ export async function enable() {
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') { emit(); return perm === 'denied' ? 'denied' : 'ask'; }
   put('notifOff', false);
-  try { await post(await subscription(true), true); put('notifErr', null); } // + notif de test envoyée par le serveur
+  try { await post(await subscription(true)); put('notifErr', null); }
   catch (e) { put('notifErr', e?.message || String(e)); emit(); throw e; }
   emit(); return 'on';
 }
 // Dernière erreur d'activation (affichée dans le Profil), ou null
 export const lastError = () => get('notifErr', null);
 
-async function post(sub, test = false) {
+async function post(sub) {
   const favs = get('favs', []).map(f => ({ sport: f.sport, name: toFrench(f.name) || f.name }));
-  const r = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sub: sub.toJSON(), favs, prefs: getPrefs(), test }) });
+  const r = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sub: sub.toJSON(), favs, prefs: getPrefs() }) });
   const d = await r.json().catch(() => ({}));
   if (!r.ok || d.error) throw new Error(d.error || `erreur serveur ${r.status}`);
 }
