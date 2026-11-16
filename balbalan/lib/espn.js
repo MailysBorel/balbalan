@@ -192,7 +192,11 @@ export async function search(q) {
       const sport = FROM[c.sport]; if (!sport || !c.displayName) continue;
       if (sport === 'basket' && c.defaultLeagueSlug !== 'nba') continue; // pas de NCAA
       const league = c.defaultLeagueSlug;
-      out.push({
+      // lien vers la page profil : équipes (tous sports) et joueurs de tennis. Les joueurs de foot / basket n'ont pas de page.
+      const tid = c.uid?.match(/~t:(\d+)/)?.[1], aid = c.uid?.match(/~a:(\d+)/)?.[1];
+      const href = r.type === 'team' && tid && league ? `/team/${sport}/${league}/${tid}`
+        : r.type === 'player' && sport === 'tennis' && aid && (league === 'atp' || league === 'wta') ? `/team/tennis/${league}/${aid}` : null;
+      out.push({ href,
         type: r.type, sport, name: c.displayName, label: toFrench(c.displayName) || c.displayName,
         sub: [...new Set([c.subtitle, NAMES[league] || c.description])].filter(x => x && !/soccer team/i.test(x)).join(' · '),
         logo: c.image?.default || null, k: tr.includes(c.displayName) ? -1 : known.has(league) ? 0 : 1,
@@ -211,6 +215,7 @@ export async function teamSchedule(sport, league, id) {
   const S = SPORTS[sport];
   const leagues = sport !== 'foot' ? [league]
     : DOMESTIC.includes(league) || league === 'uefa.champions' ? [...new Set([league, 'uefa.champions'])]
+    : !S.leagues.includes(league) ? [league] // club d'un championnat non suivi (trouvé par la recherche : Liga MX…)
     : S.leagues.filter(l => !DOMESTIC.includes(l) && l !== 'uefa.champions');
   const urls = leagues.flatMap(l => {
     const u = `${BASE}/${S.path}/${l}/teams/${id}/schedule`;

@@ -169,8 +169,11 @@ export function Search({ matches, onClose }) {
             : !res.length ? <div className="empty">Aucun résultat pour « {q.trim()} ».</div>
             : res.map(r => (
               <div className="card" key={r.sport + r.name}><span className="stripe" style={{ background: `var(--c-${r.sport})` }} />
-                <span className="mid"><span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{r.label || r.name}</span>
-                  {r.sub && <span className="mono">{r.sub}</span>}</span>
+                {(() => {
+                  const body = <><span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{r.label || r.name}{r.href && <span className="go" aria-hidden="true">›</span>}</span>
+                    {r.sub && <span className="mono">{r.sub}</span>}</>;
+                  return r.href ? <Link href={r.href} className="mid">{body}</Link> : <span className="mid">{body}</span>;
+                })()}
                 <button className={'fav ' + (has(r.sport, r.name) ? 'on' : '')} onClick={() => toggle(r.sport, r)}>{has(r.sport, r.name) ? '★ Suivi' : '☆ Suivre'}</button>
               </div>))}
         </section>
