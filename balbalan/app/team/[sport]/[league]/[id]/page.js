@@ -28,7 +28,9 @@ export default function Team() {
       {m.sets?.length ? <span className="tsets" title={m.score}>{m.sets.map(([a, b], i) => (
           <span className="tset" key={i}><b className={+a > +b ? 'w' : ''}>{a}</b><b className={+b > +a ? 'w' : ''}>{b}</b></span>))}
           {m.note && <span className="mono">{m.note}</span>}</span>
-        : m.score && <b className="sc">{Array.isArray(m.score) ? `${m.score[0]}-${m.score[1]}` : m.score}</b>}
+        : Array.isArray(m.score) ? <span className="fsc">{/* foot / basket : score de l'équipe en premier, le plus haut en surbrillance */}
+            <b className={+m.score[0] > +m.score[1] ? 'w' : ''}>{m.score[0]}</b><i>-</i><b className={+m.score[1] > +m.score[0] ? 'w' : ''}>{m.score[1]}</b></span>
+        : m.score && <b className="sc">{m.score}</b>}
     </Link>);
   return (
     <div className="app" data-sport={sport}>

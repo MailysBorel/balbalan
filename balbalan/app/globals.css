@@ -23,7 +23,7 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 .team{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .team img{width:18px;height:18px;object-fit:contain}
 .end{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-.sc{font:900 15px/20px var(--disp)}.card.live .sc.w{color:var(--accent)}.card.pre .sc{color:var(--muted)}
+.sc{font:900 15px/20px var(--disp)}.card .sc.w{color:var(--accent)}.card.post .sc:not(.w):not(.sets){color:var(--muted)}.card.pre .sc{color:var(--muted)}
 .st{font:700 10px/14px var(--mono);color:var(--muted)}.card.live .st{color:var(--live)}
 .badge{display:inline-flex;gap:6px;align-items:center;padding:5px 10px;border-radius:999px;background:rgb(255 61 110/.16);color:var(--live);font:700 10px var(--mono);letter-spacing:.08em}
 .badge:before{content:'';width:6px;height:6px;border-radius:50%;background:var(--live);animation:pulse 1.4s infinite}
@@ -140,3 +140,6 @@ button.back{background:none;border:0;color:var(--text);padding:0;text-align:left
 .tset{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:22px}
 .tset b{font:800 17px/1.1 var(--disp);color:var(--muted)}.tset b.w{color:var(--accent)}
 .tsets .mono{margin-left:2px}
+/* Page équipe (foot / basket) : score avec le plus haut en surbrillance */
+.fsc{display:flex;align-items:baseline;gap:4px;flex:none;font:800 17px var(--disp);color:var(--muted)}
+.fsc b{font:inherit}.fsc b.w{color:var(--accent)}.fsc i{font-style:normal}
