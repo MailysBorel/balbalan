@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fmtTime, statusText } from '../../../../../components/ui';
 import { useFavs } from '../../../../../components/extra';
+import { RaceDetail } from '../../../../../components/f1';
 
 export default function Match() {
   const { sport, league, id } = useParams();
@@ -24,11 +25,17 @@ export default function Match() {
   }, [sport, league, id]);
 
   const m = d?.match;
+  const back = <button className="back" onClick={() => (history.length > 1 ? router.back() : router.push('/'))}>← <span className="mono">{m?.leagueName || 'Retour'}</span></button>;
+  if (sport === 'f1') return ( // séance de F1 : classement au lieu du score
+    <div className="app" data-sport={sport}>{back}
+      {d?.error ? <div className="empty">Séance introuvable ou données indisponibles.</div>
+        : !m ? <div className="skel big" /> : <RaceDetail m={m} has={has} toggle={toggle} />}
+    </div>);
   const grid = m && m.state !== 'pre' && m.home.lines.length > 0;
 
   return (
     <div className="app" data-sport={sport}>
-      <button className="back" onClick={() => (history.length > 1 ? router.back() : router.push('/'))}>← <span className="mono">{m?.leagueName || 'Retour'}</span></button>
+      {back}
       {d?.error ? <div className="empty">Match introuvable ou données indisponibles.</div>
         : !m ? <div className="skel big" />
         : <>

@@ -1,6 +1,6 @@
 :root{--bg:#0B0D2B;--surface:#171A45;--surface2:#23286A;--line:#2E3378;--text:#F4F1E8;--muted:#8A8FC7;--ink:#0B0D2B;--live:#FF3D6E;--accent:#3DFFA2;
 --mono:'JetBrains Mono',ui-monospace,monospace;--disp:'Unbounded',system-ui,sans-serif;--sans:'Inter',system-ui,sans-serif;color-scheme:dark}
-[data-sport=basket]{--accent:#FF7A1A}[data-sport=tennis]{--accent:#E4FF1A}
+[data-sport=foot]{--accent:#3DFFA2}[data-sport=basket]{--accent:#FF7A1A}[data-sport=tennis]{--accent:#E4FF1A}[data-sport=f1]{--accent:#38E1FF}
 *{box-sizing:border-box;margin:0}
 html,body{background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-tap-highlight-color:transparent}
 a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
@@ -44,7 +44,7 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 .stat .r{display:flex;justify-content:space-between;gap:8px;font:700 12px var(--mono)}.stat .r span{font:400 13px var(--sans);color:var(--muted);text-align:center}
 .bar{display:flex;gap:4px;height:6px}.bar i{border-radius:3px;background:var(--line);min-width:3px}.bar i:first-child{background:var(--accent)}
 .ev{display:flex;gap:14px;font-size:14px}.ev b{font:700 11px var(--mono);color:var(--accent);min-width:56px;padding-top:2px}
-:root{--c-foot:#3DFFA2;--c-basket:#FF7A1A;--c-tennis:#E4FF1A}
+:root{--c-foot:#3DFFA2;--c-basket:#FF7A1A;--c-tennis:#E4FF1A;--c-f1:#38E1FF}
 .chips.scroll{overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}.chips.scroll .chip{white-space:nowrap}
 .dates{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .dates button{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:14px;padding:8px 4px;background:none;color:var(--muted)}
@@ -161,3 +161,32 @@ button.back{background:none;border:0;color:var(--text);padding:0;text-align:left
 .ntf-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .ntf-row:first-of-type{border-top:0}
 .ntf-err{color:var(--live);margin-top:10px}
+/* ---------- F1 ---------- */
+/* carte d'une séance : nom de la séance puis podium (ou top 3 en direct), pilote suivi en couleur */
+.drv .pos{flex:none;width:16px;font:700 12px var(--mono);color:var(--muted);text-align:right;margin-right:2px}
+.drv img{width:20px;height:14px;object-fit:cover;border-radius:2px}
+.drv.me{color:var(--accent)}
+.card.race.post .drv:first-of-type .pos{color:var(--accent)}
+/* bandeau « en direct » de l'accueil : nom du leader au lieu d'un score */
+.hero.race .score{font-size:clamp(34px,11vw,52px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* page de détail */
+.race-board{gap:6px}
+.race-board .gp{font:800 clamp(24px,7vw,32px)/1.15 var(--disp);margin:6px 0 0}
+.race-board .sess{font-weight:700;color:var(--accent);font-size:17px}
+.f1-table{gap:0;padding:6px 14px}
+.f1-row{display:grid;grid-template-columns:24px 4px minmax(0,1fr) auto 30px;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.f1-row:last-child{border:0}
+.f1-row .pos{font:800 15px var(--disp);text-align:center;color:var(--muted)}
+.f1-row.win .pos,.f1-row.win .nm{color:var(--accent)}
+.f1-row.me .nm{color:var(--accent)}
+.team-bar{width:4px;height:30px;border-radius:2px}
+.f1-row .who{display:flex;flex-direction:column;gap:2px;min-width:0}
+.f1-row .nm{display:flex;align-items:center;gap:7px;font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f1-row .nm img{width:20px;height:14px;object-fit:cover;border-radius:2px;flex:none}
+.f1-row .f1-res{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
+.f1-row .time{font:700 13px var(--mono)}
+.f1-row em{font-style:normal}.f1-row .up{color:#3DFFA2}.f1-row .down{color:var(--live)}
+.star{background:none;border:0;color:var(--muted);font-size:20px;padding:0;line-height:1}.star.on{color:var(--accent)}
+/* classement constructeurs : couleur de l'écurie */
+.swatch{flex:none;width:4px;height:18px;border-radius:2px}
+.f1-none{padding:14px 20px}

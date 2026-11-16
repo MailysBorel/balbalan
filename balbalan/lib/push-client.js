@@ -7,6 +7,7 @@ export const LABELS = {
   foot: { start: 'Coup d’envoi', goal: 'Buts', red: 'Cartons rouges', half: 'Mi-temps', end: 'Fin du match' },
   basket: { start: 'Début du match', quarter: 'Fin de chaque quart-temps', end: 'Fin du match' },
   tennis: { start: 'Début du match', set: 'Fin de chaque set', end: 'Fin du match', retire: 'Abandon' },
+  f1: { start: 'Départ (course et sprint)', pole: 'Pole position', end: 'Podium (course et sprint)' },
 };
 
 const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };

@@ -93,7 +93,7 @@ export function DateStrip({ off, set }) {
 }
 
 const cells = r => (<><span>{r.rank}</span>
-  <span className="team">{r.logo && <img src={r.logo} alt="" loading="lazy" />}{toFrench(r.name) || r.name}</span>
+  <span className="team">{r.color && <i className="swatch" style={{ background: r.color }} />}{r.logo && <img src={r.logo} alt="" loading="lazy" />}{toFrench(r.name) || r.name}</span>
   {r.cols.map((c, k) => <b key={k}>{c ?? '–'}</b>)}</>);
 export function Standings({ sport }) {
   const [g, setG] = useState(null);
@@ -111,7 +111,7 @@ export function Standings({ sport }) {
     <>
       <div className="chips scroll">{g.map((x, k) => <button key={k} className={'chip ' + (k === i ? 'on' : '')} onClick={() => { setI(k); try { sessionStorage.setItem('standings:' + sport, k); } catch {} }}>{x.name}</button>)}</div>
       <div className="panel table" style={{ "--n": cur.cols.length }}>
-        <div className="tr th"><span>#</span><span>{sport === 'tennis' ? 'Joueur' : 'Équipe'}</span>{cur.cols.map(c => <b key={c}>{c}</b>)}</div>
+        <div className="tr th"><span>#</span><span>{sport === 'tennis' ? 'Joueur' : sport === 'f1' ? (cur.name === 'Pilotes' ? 'Pilote' : 'Écurie') : 'Équipe'}</span>{cur.cols.map(c => <b key={c}>{c}</b>)}</div>
         {cur.rows.map(r => (
           (r.id ? <Link className="tr link" href={`/team/${sport}/${r.league}/${r.id}`} key={r.rank + r.name}>{cells(r)}</Link>
             : <div className="tr" key={r.rank + r.name}>{cells(r)}</div>)))}
@@ -191,7 +191,7 @@ export function Search({ matches, onClose }) {
   }, [q]);
   const n = norm(q.trim());
   const hit = t => [t.name, t.short, toFrench(t.name)].some(x => norm(x).includes(n)); // « maroc » trouve Morocco
-  const found = n.length >= 2 ? (matches || []).filter(m => hit(m.home) || hit(m.away) || norm(m.leagueName).includes(n)) : [];
+  const found = n.length >= 2 ? (matches || []).filter(m => (m.sport === 'f1' ? m.results.some(hit) : hit(m.home) || hit(m.away)) || norm(m.leagueName).includes(n)) : [];
   return (
     <div className="search" role="dialog" aria-modal="true" aria-label="Recherche">
       <div className="sbar">

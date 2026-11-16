@@ -16,6 +16,7 @@ export const TYPES = {
   foot: ['start', 'goal', 'red', 'half', 'end'],
   basket: ['start', 'quarter', 'end'],
   tennis: ['start', 'set', 'end', 'retire'],
+  f1: ['start', 'pole', 'end'],
 };
 
 let _redis;
@@ -45,6 +46,7 @@ export const subId = endpoint => createHash('sha256').update(endpoint).digest('h
 
 // Ce qu'on garde d'un match d'une minute à l'autre
 export function snapshot(m) {
+  if (m.sport === 'f1') return { s: m.state, t: Date.now() };
   return {
     s: m.state, h: +m.home.score || 0, a: +m.away.score || 0, p: m.period ?? 0, n: m.statusName,
     c: m.sport === 'tennis' ? done(m) : 0,
@@ -61,6 +63,7 @@ const sets = (m, n = m.home.lines.length) => m.home.lines.slice(0, n).map((v, i)
 export function detect(prev, m) {
   const ev = [], add = (type, title, body) => ev.push({ type, title, body });
   if (!prev || m.state === 'pre') return ev;
+  if (m.sport === 'f1') return detectF1(prev, m, add, ev);
   const T = `${m.home.short} – ${m.away.short}`;
 
   if (prev.s === 'pre' && m.state !== 'pre')
@@ -107,6 +110,26 @@ export function detect(prev, m) {
   return ev;
 }
 
+// F1 : départ (course, sprint), pole position (qualifs, qualifs sprint), podium (course, sprint). Pas de notif pour les essais.
+function detectF1(prev, m, add, ev) {
+  const race = m.code === 'Race' || m.code === 'SR', qual = m.code === 'Qual' || m.code === 'SS';
+  const sprint = m.code === 'SR' || m.code === 'SS', r = m.results;
+  if (race && prev.s === 'pre' && m.state !== 'pre') add('start', `🏁 ${m.leagueName}`, sprint ? 'Départ du sprint !' : 'Départ de la course !');
+  if (prev.s !== 'post' && m.state === 'post' && r.length) {
+    const podium = r.slice(0, 3).map((x, i) => `${i + 1}. ${x.short}`).join(' · ');
+    if (qual) add('pole', `${m.leagueName} · ${sprint ? 'Pole du sprint' : 'Pole position'}`, `🥇 ${r[0].short} · ${podium.split(' · ').slice(1).join(' · ')}`);
+    if (race) add('end', `🏆 ${r[0].short} remporte ${sprint ? 'le sprint du ' : 'le '}${m.leagueName}`, podium);
+  }
+  return ev;
+}
+// Place des pilotes suivis hors podium, ajoutée à la notif de chaque abonné (« Gasly P8 »)
+const f1Mine = (e, sub) => {
+  if (!e.results) return '';
+  const names = (sub.favs || []).filter(f => f.sport === 'f1').map(f => f.name);
+  const mine = e.results.filter(r => names.includes(r.name) && r.pos > 3).map(r => `${r.short} P${r.pos}`);
+  return mine.length ? ` · ${mine.join(' · ')}` : '';
+};
+
 // ---------- Tâche planifiée ----------
 
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' }).replace(/-/g, '');
@@ -126,10 +149,13 @@ export async function runCron() {
   for (const sport of Object.keys(follow)) {
     let list; try { list = await scoreboard(sport, today()); } catch { continue; }
     for (const m of list) {
-      const ids = [...new Set([...(follow[sport][m.home.name] || []), ...(follow[sport][m.away.name] || [])])];
+      // F1 : toute séance concerne ceux qui suivent au moins un pilote (tous les pilotes courent)
+      const ids = sport === 'f1' ? [...new Set(Object.values(follow.f1).flat())]
+        : [...new Set([...(follow[sport][m.home.name] || []), ...(follow[sport][m.away.name] || [])])];
       if (!ids.length) continue;
       const key = `${sport}:${m.league}:${m.id}`, prev = snaps[key], cur = snapshot(m);
-      for (const e of detect(prev, m)) events.push({ ...e, sport, ids, url: matchUrl(m), tag: `${key}:${e.type}:${cur.h}-${cur.a}:${cur.c}:${cur.p}` });
+      for (const e of detect(prev, m)) events.push({ ...e, sport, ids, url: matchUrl(m), tag: `${key}:${e.type}:${cur.h}-${cur.a}:${cur.c}:${cur.p}`,
+        results: sport === 'f1' ? m.results : null });
       if (!prev || JSON.stringify({ ...prev, t: 0 }) !== JSON.stringify({ ...cur, t: 0 })) next[key] = cur;
     }
   }
@@ -138,7 +164,7 @@ export async function runCron() {
   const byId = Object.fromEntries(subs), dead = new Set();
   let sent = 0;
   await Promise.all(events.flatMap(e => e.ids.filter(id => byId[id].prefs?.[e.sport]?.[e.type] !== false).map(id =>
-    webpush.sendNotification(byId[id].sub, JSON.stringify({ title: e.title, body: e.body, url: e.url, tag: e.tag }), { TTL: 600, urgency: 'high' })
+    webpush.sendNotification(byId[id].sub, JSON.stringify({ title: e.title, body: e.body + f1Mine(e, byId[id]), url: e.url, tag: e.tag }), { TTL: 600, urgency: 'high' })
       .then(() => sent++)
       .catch(err => { if (err.statusCode === 404 || err.statusCode === 410) dead.add(id); }))));
 

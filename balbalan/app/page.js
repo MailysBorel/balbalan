@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { Logo, MatchCard, TabBar, InstallHint, localYmd } from '../components/ui';
 import { DateStrip, Standings, Profile, CompGroups, Search, useFavs } from '../components/extra';
 import { sync as syncPush } from '../lib/push-client';
-const SPORTS = [['foot', 'Foot'], ['basket', 'Basket'], ['tennis', 'Tennis']];
+import { RaceHero, NextGP } from '../components/f1';
+const SPORTS = [['foot', 'Foot'], ['basket', 'Basket'], ['tennis', 'Tennis'], ['f1', 'F1']];
 
 // Le contenu arrive après coup (scores, classements) : on réessaie de défiler jusqu'à ce que la page soit assez haute (2 s max).
 function restoreScroll(y) {
@@ -59,7 +60,10 @@ export default function Home() {
 
   const all = (data || []).filter(m => localYmd(m.start) === date);
   const live = all.filter(m => m.state === 'live');
-  const mine = all.filter(m => favs.some(f => f.sport === sport && (f.name === m.home.name || f.name === m.away.name)));
+  // F1 : une séance concerne un pilote suivi s'il est classé dedans (avant le départ, toutes les séances du jour)
+  const mine = all.filter(m => m.sport === 'f1'
+    ? favs.some(f => f.sport === 'f1' && (!m.results.length || m.results.some(r => r.name === f.name)))
+    : favs.some(f => f.sport === sport && (f.name === m.home.name || f.name === m.away.name)));
   const hero = live[0];
   const Sec = ({ t, list }) => list.length ? (
     <section className="sec"><h2 className="mono">{t} · {list.length}</h2>{list.map(m => <MatchCard key={m.id} m={m} />)}</section>) : null;
@@ -81,13 +85,14 @@ export default function Home() {
           {err ? <div className="empty">Impossible de charger les scores. Nouvel essai dans 20 s.</div>
             : data === null ? <><div className="skel big" /><div className="skel" /><div className="skel" /></>
             : <>
-              {hero && <Link href={`/match/${hero.sport}/${hero.league}/${hero.id}?d=${date}`} className="hero">
+              {hero?.sport === 'f1' ? <RaceHero m={hero} /> : hero && <Link href={`/match/${hero.sport}/${hero.league}/${hero.id}?d=${date}`} className="hero">
                 <div className="row"><span>{hero.leagueName}</span><span>● LIVE {hero.status}</span></div>
                 <div className="score">{hero.home.score ?? 0}—{hero.away.score ?? 0}</div>
                 <div className="teams"><span>{hero.home.short}</span><span>{hero.away.short}</span></div></Link>}
-              {tab === 'matchs' && <Sec t="Mes équipes" list={mine} />}
+              {tab === 'matchs' && <Sec t={sport === 'f1' ? 'Mes pilotes' : 'Mes équipes'} list={mine} />}
               <CompGroups list={tab === 'live' ? live : all} sport={sport} />
-              {(tab === 'live' ? !live.length : !all.length) && <div className="empty">{tab === 'live' ? 'Aucun match en direct.' : 'Aucun match ce jour-là.'}</div>}
+              {sport === 'f1' && tab === 'matchs' && !all.length ? <NextGP />
+                : (tab === 'live' ? !live.length : !all.length) && <div className="empty">{tab === 'live' ? (sport === 'f1' ? 'Aucune séance en cours.' : 'Aucun match en direct.') : sport === 'f1' ? 'Aucune séance de F1 ce jour-là.' : 'Aucun match ce jour-là.'}</div>}
             </>}
         </>}
       <TabBar tab={tab} set={setTab} />

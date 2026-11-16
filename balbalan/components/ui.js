@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { RaceCard } from './f1';
 
 export const Logo = ({ s = 32 }) => (
   <svg width={s} height={s} viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="#F4F1E8" />
@@ -21,6 +22,7 @@ const Sets = ({ m, me, op }) => me.lines.map((v, i) => {
 const Team = ({ t }) => <span className={'team' + (t.tbd ? ' tbd' : '')}>{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.logo2 && <img src={t.logo2} alt="" loading="lazy" />}{t.short}</span>;
 
 export function MatchCard({ m, label }) {
+  if (m.sport === 'f1') return <RaceCard m={m} />;
   const pre = m.state === 'pre', l = lead(m);
   const tennis = m.sport === 'tennis' && m.home.lines.length > 0;
   const [a, b] = tennis ? [<Sets m={m} me={m.home} op={m.away} />, <Sets m={m} me={m.away} op={m.home} />] : [m.home.score, m.away.score];

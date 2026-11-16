@@ -2,6 +2,7 @@
 // en gardant le même format de sortie (objet "match" ci-dessous).
 import { toEnglish, toFrench, norm } from './countries';
 import { soccerEvents, soccerLineups, statLabel } from './soccer';
+import { f1Sessions, f1Standings } from './f1';
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 export const SPORTS = {
   foot: {
@@ -17,6 +18,7 @@ export const SPORTS = {
   },
   basket: { path: 'basketball', leagues: ['nba'] },
   tennis: { path: 'tennis', leagues: ['atp', 'wta'] },
+  f1: { path: 'racing', leagues: ['f1'] }, // séances de F1 : voir lib/f1.js
 };
 // Pas de cache de données Next ici : il renvoie la copie périmée à la 1re requête après expiration (stale-while-revalidate),
 // ce qui affichait des scores vieux de plusieurs heures. Le cache CDN des routes /api suffit à limiter les appels à ESPN.
@@ -95,6 +97,10 @@ const shift = (s, n) => ymd(new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1
 // (ESPN refuse les plages "dates=A-B" : une requête par jour.)
 export async function scoreboard(sport, date) {
   const S = SPORTS[sport]; if (!S) throw new Error('sport inconnu');
+  if (sport === 'f1') { // séances : en cours d'abord, puis par heure
+    const rank = { live: 0, pre: 1, post: 2 };
+    return (await f1Sessions(date)).sort((x, y) => rank[x.state] - rank[y.state] || new Date(x.start) - new Date(y.start));
+  }
   const qs = date ? [-1, 0, 1].map(n => `?dates=${shift(date, n)}&limit=300`) : [''];
   const res = await Promise.allSettled(S.leagues.flatMap(l => qs.map(q => get(`${BASE}/${S.path}/${l}/scoreboard${q}`).then(d => ({ l, d })))));
   const out = [], seen = new Set();
@@ -151,13 +157,14 @@ export const NAMES = { 'fra.1': 'Ligue 1', 'eng.1': 'Premier League', 'esp.1': '
   'caf.nations_qual': 'Qualif. CAN', 'caf.nations': 'CAN', 'fifa.worldq.caf': 'Qualif. Mondial · Afrique',
   'conmebol.america': 'Copa América', 'fifa.worldq.conmebol': 'Qualif. Mondial · Amérique du Sud',
   'concacaf.nations.league': 'Ligue des nations CONCACAF', 'concacaf.gold': 'Gold Cup', 'fifa.worldq.concacaf': 'Qualif. Mondial · CONCACAF',
-  'afc.cupq': 'Qualif. Coupe d’Asie', 'afc.asian.cup': 'Coupe d’Asie', 'fifa.worldq.afc': 'Qualif. Mondial · Asie', nba: 'NBA', atp: 'ATP', wta: 'WTA' };
+  'afc.cupq': 'Qualif. Coupe d’Asie', 'afc.asian.cup': 'Coupe d’Asie', 'fifa.worldq.afc': 'Qualif. Mondial · Asie', nba: 'NBA', atp: 'ATP', wta: 'WTA', f1: 'Formule 1' };
 const stat = (e, n) => e.stats?.find(s => s.name === n || s.type === n);
 // NBA : pourcentage de victoires à la française (0.846 → « 85 % ») et conférences traduites
 const pct = v => (v == null ? '–' : `${Math.round(v * 100)} %`);
 const conf = n => /east/i.test(n) ? 'Est' : /west/i.test(n) ? 'Ouest' : n.replace(' Conference', '');
 export async function standings(sport) {
   const S = SPORTS[sport];
+  if (sport === 'f1') return f1Standings();
   if (sport === 'tennis') {
     const res = await Promise.allSettled(S.leagues.map(l => get(`${BASE}/tennis/${l}/rankings`).then(d => ({ l, d }))));
     return res.filter(r => r.status === 'fulfilled').map(({ value: { l, d } }) => ({
@@ -191,7 +198,7 @@ export async function standings(sport) {
 }
 
 // Recherche d'équipes et de joueurs (foot, basket, tennis), celles des compétitions suivies en premier.
-const FROM = { soccer: 'foot', basketball: 'basket', tennis: 'tennis' };
+const FROM = { soccer: 'foot', basketball: 'basket', tennis: 'tennis', racing: 'f1' };
 export async function search(q) {
   // « maroc » → on cherche aussi « Morocco » (ESPN est en anglais) ; les traductions passent en premier.
   const tr = toEnglish(q), queries = [...tr, ...(tr.some(e => norm(e) === norm(q)) ? [] : [q])];
@@ -204,6 +211,7 @@ export async function search(q) {
     for (const c of r.contents || []) {
       const sport = FROM[c.sport]; if (!sport || !c.displayName) continue;
       if (sport === 'basket' && c.defaultLeagueSlug !== 'nba') continue; // pas de NCAA
+      if (sport === 'f1' && (c.defaultLeagueSlug !== 'f1' || r.type !== 'player')) continue; // F1 : pilotes uniquement
       const league = c.defaultLeagueSlug;
       // lien vers la page profil : équipes (tous sports) et joueurs de tennis. Les joueurs de foot / basket n'ont pas de page.
       const tid = c.uid?.match(/~t:(\d+)/)?.[1], aid = c.uid?.match(/~a:(\d+)/)?.[1];
