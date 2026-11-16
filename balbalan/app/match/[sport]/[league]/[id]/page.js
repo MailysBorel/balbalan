@@ -18,7 +18,9 @@ export default function Match() {
       .then(x => on && setD(x)).catch(() => on && setD({ error: 1 }));
     load();
     const t = setInterval(() => document.visibilityState === 'visible' && load(), 20000);
-    return () => { on = false; clearInterval(t); };
+    const wake = () => document.visibilityState === 'visible' && load();
+    document.addEventListener('visibilitychange', wake);
+    return () => { on = false; clearInterval(t); document.removeEventListener('visibilitychange', wake); };
   }, [sport, league, id]);
 
   const m = d?.match;

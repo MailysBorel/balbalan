@@ -24,7 +24,9 @@ export default function Home() {
       .then(d => { if (on) { setData(d.matches || []); setErr(!!d.error); } }).catch(() => on && setErr(true));
     load();
     const t = date === localYmd(Date.now()) ? setInterval(() => document.visibilityState === 'visible' && load(), 20000) : null;
-    return () => { on = false; clearInterval(t); };
+    const wake = () => document.visibilityState === 'visible' && load(); // retour au premier plan : scores à jour tout de suite
+    document.addEventListener('visibilitychange', wake);
+    return () => { on = false; clearInterval(t); document.removeEventListener('visibilitychange', wake); };
   }, [sport, date, tab]);
 
   const all = (data || []).filter(m => localYmd(m.start) === date);

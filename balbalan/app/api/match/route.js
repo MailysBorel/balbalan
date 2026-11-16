@@ -10,6 +10,6 @@ export async function GET(req) {
       if (!m) return Response.json({ error: 'Match introuvable' }, { status: 404 });
       r = { match: m, stats: r?.stats || [], events: r?.events || [], lineups: r?.lineups || null };
     }
-    return Response.json(r, { headers: { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=40' } });
+    return Response.json(r, { headers: { 'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=10' } });
   } catch (e) { return Response.json({ error: e.message }, { status: 502 }); }
 }

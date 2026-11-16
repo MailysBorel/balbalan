@@ -18,8 +18,10 @@ export const SPORTS = {
   basket: { path: 'basketball', leagues: ['nba'] },
   tennis: { path: 'tennis', leagues: ['atp', 'wta'] },
 };
+// Pas de cache de données Next ici : il renvoie la copie périmée à la 1re requête après expiration (stale-while-revalidate),
+// ce qui affichait des scores vieux de plusieurs heures. Le cache CDN des routes /api suffit à limiter les appels à ESPN.
 async function get(url) {
-  const r = await fetch(url, { next: { revalidate: 20 } });
+  const r = await fetch(url, { cache: 'no-store' });
   if (!r.ok) throw new Error(r.status + ' ' + url);
   return r.json();
 }
