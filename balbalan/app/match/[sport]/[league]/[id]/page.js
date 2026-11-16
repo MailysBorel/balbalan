@@ -43,8 +43,10 @@ export default function Match() {
                 <span className="nm">{t.name}</span>
                 {!t.tbd && <button className={'fav ' + (has(sport, t.name) ? 'on' : '')} onClick={() => toggle(sport, t)}>{has(sport, t.name) ? '★ Suivi' : '☆ Suivre'}</button>}
               </div>))}</div>
-            {lines && <span className="mono">{lines}</span>}
+            {sport === 'tennis' && m.home.lines.length ? <TennisGrid m={m} /> : lines && <span className="mono">{lines}</span>}
           </div>
+          {/* tennis : ESPN ne fournit ni stats ni temps forts → pas d'onglets */}
+          {sport !== 'tennis' && <>
           <div className="seg">{[['stats', 'Stats'], ['resume', 'Temps forts'], ...(sport === 'foot' ? [['compos', 'Compos']] : [])].map(([k, n]) =>
             <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{n}</button>)}</div>
           {tab === 'compos' ? <Lineups l={d.lineups} side={side} setSide={setSide} pre={m.state === 'pre'} />
@@ -56,6 +58,7 @@ export default function Match() {
           : (d.events?.length ? <div className="panel">{d.events.map((e, i) =>
             <div className={'ev' + (e.kind === 'goal' ? ' goal' : '')} key={i}><b>{e.time}</b>{e.icon && <i aria-hidden="true">{e.icon}</i>}<span>{e.text}</span></div>)}</div>
             : <div className="empty">Aucun temps fort pour l’instant.</div>)}
+          </>}
         </>}
     </div>
   );
@@ -83,6 +86,29 @@ function Lineups({ l, side, setSide, pre }) {
 }
 
 // Photo du joueur (tennis) avec son drapeau en pastille ; sinon drapeau(x) ou logo de l'équipe ; sinon initiales.
+// Tennis : tableau des jeux par set (comme la carte de l'accueil, en plus grand), set en cours encadré.
+function TennisGrid({ m }) {
+  const n = Math.max(m.home.lines.length, m.away.lines.length), cur = m.state === 'live' ? n - 1 : -1;
+  const sets = [...Array(n).keys()];
+  const Row = ({ me, op }) => {
+    const won = sets.filter(i => i !== cur && +me.lines[i] > +(op.lines[i] ?? -1)).length > sets.filter(i => i !== cur && +op.lines[i] > +(me.lines[i] ?? -1)).length;
+    return (
+      <div className={'tg-row' + (m.state === 'post' && won ? ' win' : '')}>
+        <span className="tg-nm">{me.logo && <img src={me.logo} alt="" />}{me.short}</span>
+        {sets.map(i => {
+          const v = me.lines[i], w = i !== cur && +v > +(op.lines[i] ?? -1);
+          return <span key={i} className={'tg-c' + (i === cur ? ' cur' : w ? ' w' : '')}>{v ?? ''}</span>;
+        })}
+      </div>);
+  };
+  return (
+    <div className="tgrid" style={{ '--n': n }}>
+      <div className="tg-row tg-h"><span />{sets.map(i => <span key={i} className={'tg-c' + (i === cur ? ' cur' : '')}>S{i + 1}</span>)}</div>
+      <Row me={m.home} op={m.away} />
+      <Row me={m.away} op={m.home} />
+    </div>);
+}
+
 function Avatar({ t, sport }) {
   const [bad, setBad] = useState(false);
   useEffect(() => setBad(false), [t.photo]);

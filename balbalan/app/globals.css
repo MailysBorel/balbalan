@@ -123,3 +123,14 @@ button.back{background:none;border:0;color:var(--text);padding:0;text-align:left
 .mrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.mrow:last-child{border-bottom:0}
 .mrow .sc{font:900 15px var(--disp)}
 .mrow .sc{white-space:nowrap;font-size:13px}
+/* Tennis : tableau des sets dans la page détail */
+.tgrid{width:100%;margin-top:6px;background:var(--bg);border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.tg-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(var(--n),40px);align-items:center;gap:6px;text-align:left}
+.tg-h{font:600 10px var(--mono);letter-spacing:.1em;color:var(--muted)}.tg-h .tg-c{font:inherit;height:auto}
+.tg-h .tg-c.cur{color:var(--accent);background:none;border:0}
+.tg-nm{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.tg-nm img{width:22px;height:15px;object-fit:cover;border-radius:2px;flex:none}
+.tg-row.win .tg-nm{color:var(--accent)}
+.tg-c{text-align:center;font:800 24px/1 var(--disp);color:var(--muted);height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.tg-c.w{color:var(--accent)}
+.tg-c.cur{color:var(--text);background:var(--surface2);border:1.5px solid var(--accent)}
