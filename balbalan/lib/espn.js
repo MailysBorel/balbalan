@@ -153,6 +153,9 @@ export const NAMES = { 'fra.1': 'Ligue 1', 'eng.1': 'Premier League', 'esp.1': '
   'concacaf.nations.league': 'Ligue des nations CONCACAF', 'concacaf.gold': 'Gold Cup', 'fifa.worldq.concacaf': 'Qualif. Mondial · CONCACAF',
   'afc.cupq': 'Qualif. Coupe d’Asie', 'afc.asian.cup': 'Coupe d’Asie', 'fifa.worldq.afc': 'Qualif. Mondial · Asie', nba: 'NBA', atp: 'ATP', wta: 'WTA' };
 const stat = (e, n) => e.stats?.find(s => s.name === n || s.type === n);
+// NBA : pourcentage de victoires à la française (0.846 → « 85 % ») et conférences traduites
+const pct = v => (v == null ? '–' : `${Math.round(v * 100)} %`);
+const conf = n => /east/i.test(n) ? 'Est' : /west/i.test(n) ? 'Ouest' : n.replace(' Conference', '');
 export async function standings(sport) {
   const S = SPORTS[sport];
   if (sport === 'tennis') {
@@ -176,12 +179,12 @@ export async function standings(sport) {
         const t = e.team || {}, v = n => stat(e, n);
         const base = { id: t.id || null, league: l, name: t.shortDisplayName || t.displayName || '?', logo: t.logos?.[0]?.href || t.logo || null };
         return sport === 'basket'
-          ? { ...base, k: -(v('winPercent')?.value ?? 0), cols: [v('wins')?.displayValue, v('losses')?.displayValue, v('winPercent')?.displayValue] }
+          ? { ...base, k: -(v('winPercent')?.value ?? 0), cols: [v('wins')?.displayValue, v('losses')?.displayValue, pct(v('winPercent')?.value)] }
           : { ...base, k: v('rank')?.value ?? 1000 - (v('points')?.value ?? 0), cols: [v('gamesPlayed')?.displayValue, v('pointDifferential')?.displayValue, v('points')?.displayValue] };
       });
       rows.sort((a, b) => a.k - b.k); rows = rows.map(({ k, ...x }, i) => ({ ...x, rank: i + 1 }));
-      const name = sport === 'basket' ? (c.name || c.abbreviation || 'NBA').replace(' Conference', '') : NAMES[l] + (kids.length > 1 ? ' · ' + (c.abbreviation || c.name).replace(/Group /g, 'Groupe ').replace(/League /g, 'Ligue ') : '');
-      groups.push({ name, cols: sport === 'basket' ? ['V', 'D', '%'] : ['J', '+/-', 'Pts'], rows });
+      const name = sport === 'basket' ? conf(c.name || c.abbreviation || 'NBA') : NAMES[l] + (kids.length > 1 ? ' · ' + (c.abbreviation || c.name).replace(/Group /g, 'Groupe ').replace(/League /g, 'Ligue ') : '');
+      groups.push({ name, cols: sport === 'basket' ? ['V', 'D', '% V'] : ['J', '+/-', 'Pts'], rows });
     }
   }
   return groups;
