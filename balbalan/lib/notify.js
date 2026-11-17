@@ -103,6 +103,8 @@ export function detect(prev, m) {
     if (m.sport === 'tennis') {
       const ab = /retire/i.test(m.detail), wo = /walkover/i.test(m.detail);
       const w = +m.home.score > +m.away.score ? m.home : m.away, l = w === m.home ? m.away : m.home;
+      // ESPN marque parfois « terminé » un match en cours : pas de victoire sans 2 sets gagnés (sauf abandon / forfait)
+      if (!ab && !wo && Math.max(+m.home.score || 0, +m.away.score || 0) < 2) return ev;
       if (ab) add('retire', T, `Abandon de ${l.short} · ${w.short} qualifié(e) · ${sets(m)}`);
       else add('end', T, wo ? `Forfait de ${l.short}` : `Victoire de ${w.short} · ${sets(m)}`);
     } else add('end', T, `Terminé · ${score(m)}`);
@@ -153,7 +155,14 @@ export async function runCron() {
       const ids = sport === 'f1' ? [...new Set(Object.values(follow.f1).flat())]
         : [...new Set([...(follow[sport][m.home.name] || []), ...(follow[sport][m.away.name] || [])])];
       if (!ids.length) continue;
-      const key = `${sport}:${m.league}:${m.id}`, prev = snaps[key], cur = snapshot(m);
+      const key = `${sport}:${m.league}:${m.id}`, prev = snaps[key];
+      const cur = snapshot(m);
+      // Fin de match : il faut la voir 2 minutes de suite (ESPN annonce parfois « terminé » quelques instants
+      // pendant un match). 1re fois : on garde l'état précédent avec un drapeau « fin à confirmer », sans notif.
+      if (prev && m.state === 'post' && prev.s !== 'post' && !prev.pp) {
+        next[key] = { ...prev, pp: 1, t: Date.now() };
+        continue;
+      }
       for (const e of detect(prev, m)) events.push({ ...e, sport, ids, url: matchUrl(m), tag: `${key}:${e.type}:${cur.h}-${cur.a}:${cur.c}:${cur.p}`,
         results: sport === 'f1' ? m.results : null });
       if (!prev || JSON.stringify({ ...prev, t: 0 }) !== JSON.stringify({ ...cur, t: 0 })) next[key] = cur;
